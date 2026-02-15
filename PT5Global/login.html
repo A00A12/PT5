@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>柏盛全球合伙人系统 | 身份认证</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .bg-grid-pattern {
+            background-image: linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        /* 动画类 */
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        .slide-up { animation: slideUp 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .loading-spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 3px solid #fff;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* 隐藏滚动条 */
+        ::-webkit-scrollbar { width: 0px; }
+    </style>
+</head>
+<body class="bg-white text-slate-900 antialiased h-screen overflow-hidden flex">
+
+    <div class="hidden lg:flex lg:w-1/2 relative bg-slate-900 overflow-hidden items-center justify-center p-12">
+        <div class="absolute inset-0 bg-gradient-to-br from-teal-900 via-slate-900 to-slate-900 z-0"></div>
+        <div class="absolute inset-0 bg-grid-pattern z-0 opacity-30"></div>
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-teal-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-pulse"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-40"></div>
+
+        <div class="relative z-10 w-full max-w-lg slide-up">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-xs font-bold uppercase tracking-widest mb-8">
+                <span class="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
+                System v5.0 Live
+            </div>
+            
+            <h1 class="text-5xl font-extrabold text-white leading-tight mb-6 tracking-tight">
+                连接全球业务<br>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-300">驱动数字化增长</span>
+            </h1>
+            
+            <p class="text-slate-400 text-lg mb-10 leading-relaxed font-medium">
+                柏盛全球合伙人系统 v5.0，集成了多币种结算、团队裂变与业务自动化，为您打造无缝的跨境协作体验。
+            </p>
+
+            <div class="glass-panel rounded-3xl p-6 flex gap-8">
+                <div>
+                    <div class="text-3xl font-black text-white mb-1">100%</div>
+                    <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">数据实时同步</div>
+                </div>
+                <div class="w-px bg-white/10"></div>
+                <div>
+                    <div class="text-3xl font-black text-white mb-1">Global</div>
+                    <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">多币种支持</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="w-full lg:w-1/2 flex items-center justify-center bg-white relative overflow-y-auto">
+        <div class="w-full max-w-md p-8 slide-up">
+            
+            <div id="panel-login" class="fade-in">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-slate-900 tracking-tight">欢迎回来</h2>
+                    <p class="text-slate-500 mt-2 font-medium">请输入账号信息登录工作台</p>
+                </div>
+
+                <form id="loginForm" class="space-y-5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">手机号码</label>
+                        <input type="tel" id="login-phone" class="w-full px-5 py-4 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none transition-all font-bold text-slate-900 placeholder:font-medium" placeholder="请输入注册手机号">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest">密码</label>
+                            <a href="#" onclick="switchPanel('forgot')" class="text-xs font-bold text-teal-600 hover:text-teal-800">忘记密码？</a>
+                        </div>
+                        <input type="password" id="login-password" class="w-full px-5 py-4 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none transition-all font-bold text-slate-900 placeholder:font-medium" placeholder="••••••••">
+                    </div>
+
+                    <button type="submit" id="btnLogin" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-teal-600 hover:shadow-lg hover:shadow-teal-500/30 active:scale-[0.98] transition-all flex justify-center items-center gap-2">
+                        <span>安全登录</span>
+                    </button>
+                </form>
+
+                <div class="mt-8 text-center">
+                    <p class="text-slate-500 text-sm font-medium">
+                        还没有账号？ 
+                        <a href="#" onclick="switchPanel('register')" class="font-bold text-teal-600 hover:text-teal-800 underline decoration-2 underline-offset-4 transition-all">立即极简注册</a>
+                    </p>
+                </div>
+            </div>
+
+            <div id="panel-register" class="hidden fade-in">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-slate-900 tracking-tight">极简注册</h2>
+                    <p class="text-slate-500 mt-1 text-sm font-medium">仅需3步即可加入柏盛合伙人计划</p>
+                </div>
+
+                <div class="flex items-center gap-2 mb-6">
+                    <div id="step-dot-1" class="h-1.5 w-8 bg-teal-500 rounded-full transition-all"></div>
+                    <div id="step-dot-2" class="h-1.5 w-8 bg-slate-200 rounded-full transition-all"></div>
+                    <div id="step-dot-3" class="h-1.5 w-8 bg-slate-200 rounded-full transition-all"></div>
+                </div>
+
+                <form id="registerForm">
+                    
+                    <div id="reg-step-1" class="space-y-6">
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest">请选择您的身份类型</label>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <label class="cursor-pointer relative group">
+                                <input type="radio" name="userType" value="customer" class="peer sr-only" checked onchange="toggleStaffRoles()">
+                                <div class="p-4 rounded-2xl border-2 border-slate-100 bg-white hover:border-teal-100 peer-checked:border-teal-500 peer-checked:bg-teal-50 transition-all text-center">
+                                    <div class="text-2xl mb-1">🛍️</div>
+                                    <div class="font-bold text-slate-700 peer-checked:text-teal-700">我是客户</div>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer relative group">
+                                <input type="radio" name="userType" value="staff" class="peer sr-only" onchange="toggleStaffRoles()">
+                                <div class="p-4 rounded-2xl border-2 border-slate-100 bg-white hover:border-teal-100 peer-checked:border-teal-500 peer-checked:bg-teal-50 transition-all text-center">
+                                    <div class="text-2xl mb-1">💼</div>
+                                    <div class="font-bold text-slate-700 peer-checked:text-teal-700">我是工作人员</div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div id="staff-roles-container" class="hidden p-4 bg-slate-50 rounded-xl border border-slate-200 animate-fadeIn">
+                            <p class="text-xs font-bold text-slate-500 mb-3 uppercase">请勾选您的职能 (可多选)</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="staffRole" value="业务员" class="w-4 h-4 text-teal-600 rounded"> <span class="text-sm font-medium">业务员</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="staffRole" value="业务经理" class="w-4 h-4 text-teal-600 rounded"> <span class="text-sm font-medium">业务经理</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="staffRole" value="运营" class="w-4 h-4 text-teal-600 rounded"> <span class="text-sm font-medium">运营</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="staffRole" value="财务" class="w-4 h-4 text-teal-600 rounded"> <span class="text-sm font-medium">财务</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="staffRole" value="管理员" class="w-4 h-4 text-teal-600 rounded"> <span class="text-sm font-medium">管理员</span></label>
+                            </div>
+                        </div>
+
+                        <button type="button" onclick="nextStep(2)" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold mt-4 hover:bg-teal-600 transition-all">下一步：基础信息</button>
+                    </div>
+
+                    <div id="reg-step-2" class="hidden space-y-4">
+                        <div>
+                            <input type="tel" id="reg-phone" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:border-teal-500 font-medium" placeholder="手机号码 (唯一登录凭证)">
+                        </div>
+                        <div>
+                            <input type="text" id="reg-name" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:border-teal-500 font-medium" placeholder="真实姓名">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="password" id="reg-pwd" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:border-teal-500 font-medium" placeholder="设置密码">
+                            <input type="password" id="reg-pwd-confirm" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:border-teal-500 font-medium" placeholder="确认密码">
+                        </div>
+
+                        <div class="p-4 bg-teal-50/50 rounded-xl border border-teal-100">
+                            <div class="flex justify-between items-center mb-3">
+                                <label class="text-xs font-bold text-teal-700 uppercase">实名认证 (二选一必填)</label>
+                                <button type="button" onclick="toggleIdType()" class="text-xs font-bold text-blue-600 hover:underline">🔁 切换证件类型</button>
+                            </div>
+                            
+                            <div id="input-idcard-box">
+                                <input type="text" id="reg-idcard" class="w-full px-4 py-3 rounded-xl bg-white border border-teal-200 outline-none focus:ring-2 focus:ring-teal-500/20 font-medium" placeholder="请输入身份证号码">
+                            </div>
+                            <div id="input-passport-box" class="hidden">
+                                <input type="text" id="reg-passport" class="w-full px-4 py-3 rounded-xl bg-white border border-teal-200 outline-none focus:ring-2 focus:ring-teal-500/20 font-medium" placeholder="请输入护照号码 (Passport)">
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button type="button" onclick="prevStep(1)" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all">上一步</button>
+                            <button type="button" onclick="nextStep(3)" class="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-teal-600 transition-all">下一步</button>
+                        </div>
+                    </div>
+
+                    <div id="reg-step-3" class="hidden space-y-6 text-center">
+                        <div class="py-6">
+                            <div class="text-4xl mb-2">🤝</div>
+                            <h3 class="font-bold text-slate-800">最后一步</h3>
+                            <p class="text-slate-500 text-sm">如果您有推荐人，请填写推荐码</p>
+                        </div>
+
+                        <div>
+                            <input type="text" id="reg-referral" class="w-full px-4 py-4 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:border-teal-500 font-bold text-center tracking-widest uppercase placeholder:normal-case placeholder:tracking-normal" placeholder="推荐码 (例如 BS8A2D) - 选填">
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button type="button" onclick="prevStep(2)" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all">上一步</button>
+                            <button type="button" onclick="submitRegister()" id="btnRegister" class="flex-[2] bg-teal-600 text-white py-3 rounded-xl font-bold hover:bg-teal-700 shadow-lg shadow-teal-500/30 transition-all">完成注册</button>
+                        </div>
+                    </div>
+
+                </form>
+
+                <div class="mt-6 text-center">
+                    <button onclick="switchPanel('login')" class="text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors">← 返回登录</button>
+                </div>
+            </div>
+
+            <div id="panel-forgot" class="hidden fade-in">
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-red-600 tracking-tight">重置密码</h2>
+                    <p class="text-slate-500 mt-1 text-sm font-medium">验证您的个人信息以重置密码</p>
+                </div>
+
+                <form id="forgotForm" class="space-y-4">
+                    <div>
+                        <input type="tel" id="forgot-phone" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:border-red-500 font-medium" placeholder="注册手机号">
+                    </div>
+                    <div>
+                        <input type="text" id="forgot-name" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:border-red-500 font-medium" placeholder="真实姓名">
+                    </div>
+                    <div>
+                        <input type="text" id="forgot-idcard" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:border-red-500 font-medium" placeholder="身份证号或护照号 (完全匹配)">
+                    </div>
+                    <div class="pt-4 border-t border-slate-100 mt-4">
+                        <input type="password" id="forgot-new-pwd" class="w-full px-4 py-3 rounded-xl bg-white border-2 border-slate-100 outline-none focus:border-red-500 font-bold" placeholder="输入新密码">
+                    </div>
+
+                    <button type="button" onclick="submitForgot()" id="btnForgot" class="w-full bg-red-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-red-700 hover:shadow-lg hover:shadow-red-500/30 active:scale-[0.98] transition-all">
+                        验证并重置
+                    </button>
+                </form>
+
+                <div class="mt-6 text-center">
+                    <button onclick="switchPanel('login')" class="text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors">取消并返回</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // ===================== 配置区域 =====================
+        const SUPABASE_URL = 'https://xxouixhnhauvgrrchako.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4b3VpeGhuaGF1dmdycmNoYWtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTk2NjYsImV4cCI6MjA4NTczNTY2Nn0.ph24qP9wXOAvsblwkobH9MhSrDFJ4g5vyGof7aUjjVw';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ===================== 面板切换逻辑 =====================
+        function switchPanel(panelId) {
+            ['login', 'register', 'forgot'].forEach(p => {
+                const el = document.getElementById('panel-' + p);
+                if(p === panelId) {
+                    el.classList.remove('hidden');
+                    el.classList.add('fade-in');
+                } else {
+                    el.classList.add('hidden');
+                    el.classList.remove('fade-in');
+                }
+            });
+        }
+
+        // ===================== 注册逻辑 =====================
+        // 步骤控制
+        function nextStep(step) {
+            // 简单验证
+            if(step === 2) {
+                // Step 1 check
+                const isStaff = document.querySelector('input[name="userType"]:checked').value === 'staff';
+                if(isStaff) {
+                    const roles = document.querySelectorAll('input[name="staffRole"]:checked');
+                    if(roles.length === 0) { alert('工作人员请至少选择一个职能角色'); return; }
+                }
+            }
+            if(step === 3) {
+                // Step 2 check
+                const phone = document.getElementById('reg-phone').value;
+                const name = document.getElementById('reg-name').value;
+                const pwd = document.getElementById('reg-pwd').value;
+                const pwd2 = document.getElementById('reg-pwd-confirm').value;
+                const idCard = document.getElementById('reg-idcard').value;
+                const passport = document.getElementById('reg-passport').value;
+                
+                if(!phone || !name || !pwd) { alert('请填写完整基础信息'); return; }
+                if(pwd !== pwd2) { alert('两次密码输入不一致'); return; }
+                if(!idCard && !passport) { alert('请填写身份证或护照其中一项'); return; }
+            }
+
+            // UI 切换
+            document.querySelectorAll('[id^="reg-step-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById('reg-step-' + step).classList.remove('hidden');
+            
+            // 进度条更新
+            for(let i=1; i<=3; i++) {
+                const dot = document.getElementById('step-dot-' + i);
+                if(i <= step) {
+                    dot.classList.remove('bg-slate-200');
+                    dot.classList.add('bg-teal-500');
+                } else {
+                    dot.classList.remove('bg-teal-500');
+                    dot.classList.add('bg-slate-200');
+                }
+            }
+        }
+
+        function prevStep(step) {
+            nextStep(step); // 复用逻辑
+        }
+
+        // 切换工作人员多选框
+        function toggleStaffRoles() {
+            const isStaff = document.querySelector('input[name="userType"]:checked').value === 'staff';
+            const container = document.getElementById('staff-roles-container');
+            if(isStaff) container.classList.remove('hidden');
+            else container.classList.add('hidden');
+        }
+
+        // 切换证件类型
+        let usePassport = false;
+        function toggleIdType() {
+            usePassport = !usePassport;
+            const idBox = document.getElementById('input-idcard-box');
+            const passBox = document.getElementById('input-passport-box');
+            const idInput = document.getElementById('reg-idcard');
+            const passInput = document.getElementById('reg-passport');
+
+            if(usePassport) {
+                idBox.classList.add('hidden');
+                passBox.classList.remove('hidden');
+                idInput.value = ''; // 清空另一个
+            } else {
+                idBox.classList.remove('hidden');
+                passBox.classList.add('hidden');
+                passInput.value = ''; // 清空另一个
+            }
+        }
+
+        // 提交注册
+        async function submitRegister() {
+            const btn = document.getElementById('btnRegister');
+            btn.innerHTML = `<div class="loading-spinner"></div> 注册中...`;
+            btn.disabled = true;
+
+            try {
+                // 1. 收集数据
+                const phone = document.getElementById('reg-phone').value.trim();
+                const name = document.getElementById('reg-name').value.trim();
+                const pwd = document.getElementById('reg-pwd').value;
+                const idCard = document.getElementById('reg-idcard').value.trim();
+                const passport = document.getElementById('reg-passport').value.trim();
+                const referral = document.getElementById('reg-referral').value.trim();
+                
+                // 角色处理
+                const userType = document.querySelector('input[name="userType"]:checked').value;
+                let roles = [];
+                if(userType === 'customer') {
+                    roles = ['客户'];
+                } else {
+                    document.querySelectorAll('input[name="staffRole"]:checked').forEach(cb => roles.push(cb.value));
+                }
+
+                // 2. 查重
+                const { data: exist } = await supabase.from('01_user_master').select('user_id').eq('phone', phone);
+                if(exist && exist.length > 0) {
+                    throw new Error('该手机号已被注册');
+                }
+
+                // 3. 生成推荐码 (修正：BS + 4位 = 总共6位)
+                // 之前错误写法: .substring(2, 8) => 6 chars + 'BS' => 8 chars (太长)
+                // 修正后: .substring(2, 6) => 4 chars + 'BS' => 6 chars (符合数据库)
+                const newReferralCode = 'BS' + Math.random().toString(36).substring(2, 6).toUpperCase();
+
+                // 4. 插入数据库
+                const { error } = await supabase.from('01_user_master').insert([{
+                    phone: phone,
+                    real_name: name,
+                    password: pwd,
+                    role: roles, 
+                    id_card: idCard || null,
+                    passport: passport || null,
+                    referral_code: newReferralCode,
+                    status: '已通过', 
+                    // 补充默认字段防止其他错误
+                    purchase_vip: '试用期',
+                    service_vip: '新客试用期',
+                    created_at: new Date()
+                }]);
+
+                if(error) throw error;
+
+                alert(`注册成功！\n您的推荐码是: ${newReferralCode}\n请使用手机号登录。`);
+                switchPanel('login');
+
+            } catch (err) {
+                alert('注册失败: ' + err.message);
+            } finally {
+                btn.innerHTML = '完成注册';
+                btn.disabled = false;
+            }
+        }
+
+        // ===================== 找回密码逻辑 =====================
+        async function submitForgot() {
+            const btn = document.getElementById('btnForgot');
+            const phone = document.getElementById('forgot-phone').value.trim();
+            const name = document.getElementById('forgot-name').value.trim();
+            const idVal = document.getElementById('forgot-idcard').value.trim();
+            const newPwd = document.getElementById('forgot-new-pwd').value.trim();
+
+            if(!phone || !name || !idVal || !newPwd) { alert('请填写所有验证信息'); return; }
+
+            btn.innerHTML = `<div class="loading-spinner"></div> 验证中...`;
+            btn.disabled = true;
+
+            try {
+                const { data: users, error } = await supabase
+                    .from('01_user_master')
+                    .select('*')
+                    .eq('phone', phone)
+                    .eq('real_name', name)
+                    .single();
+
+                if(error || !users) throw new Error('未找到匹配的用户信息');
+
+                const dbID = users.id_card || '';
+                const dbPass = users.passport || '';
+                
+                if(dbID !== idVal && dbPass !== idVal) {
+                    throw new Error('证件号码验证失败');
+                }
+
+                const { error: updateErr } = await supabase
+                    .from('01_user_master')
+                    .update({ password: newPwd })
+                    .eq('user_id', users.user_id);
+
+                if(updateErr) throw updateErr;
+
+                alert('密码重置成功，请重新登录');
+                switchPanel('login');
+
+            } catch (err) {
+                alert('操作失败: ' + err.message);
+            } finally {
+                btn.innerHTML = '验证并重置';
+                btn.disabled = false;
+            }
+        }
+
+        // ===================== 登录逻辑 =====================
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnLogin');
+            const phone = document.getElementById('login-phone').value.trim();
+            const pwd = document.getElementById('login-password').value;
+
+            if(!phone || !pwd) { alert('请输入手机号和密码'); return; }
+
+            btn.innerHTML = `<div class="loading-spinner"></div> 登录中...`;
+            btn.disabled = true;
+
+            try {
+                const { data, error } = await supabase
+                    .from('01_user_master')
+                    .select('*')
+                    .eq('phone', phone)
+                    .single();
+
+                if(error || !data) throw new Error('账号不存在');
+                if(data.password !== pwd) throw new Error('密码错误');
+                if(data.status === '已禁用') throw new Error('账号已被禁用');
+
+                localStorage.setItem('baisheng_user', JSON.stringify(data));
+                
+                const roles = Array.isArray(data.role) ? data.role : [data.role];
+                if(roles.includes('管理员')) window.location.href = 'admin.html';
+                else if(roles.includes('运营')) window.location.href = 'operations.html';
+                else if(roles.includes('业务经理')) window.location.href = 'manager.html'; 
+                else if(roles.includes('业务员')) window.location.href = 'salesperson.html';
+                else if(roles.includes('财务')) window.location.href = 'finance.html';
+                else window.location.href = 'customer.html';
+
+            } catch (err) {
+                alert('登录失败: ' + err.message);
+                btn.innerHTML = '安全登录';
+                btn.disabled = false;
+            }
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>业务员系统 | 柏盛全球合伙人系统 v5.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        .vip-gradient { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
+        .service-gradient { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(241, 245, 249, 1); }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(5px);
+            display: flex; align-items: center; justify-content: center; z-index: 9999;
+        }
+        .loading-spinner {
+            width: 50px; height: 50px; border: 4px solid #e2e8f0;
+            border-top-color: #4f46e5; border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .toast {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background: #1e293b; color: white; padding: 12px 24px; border-radius: 12px;
+            font-size: 14px; font-weight: 600; z-index: 10000; opacity: 0; transition: all 0.3s ease;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    </style>
+</head>
+<body class="text-slate-900 antialiased h-screen flex overflow-hidden">
+
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <aside class="w-64 bg-white border-r border-slate-100 hidden md:flex flex-col justify-between h-full z-30 shadow-sm relative">
+        <div>
+            <div class="h-20 flex items-center px-8 border-b border-slate-50">
+                <span class="text-xl font-black text-indigo-600 tracking-tight">柏盛业务 <span class="text-xs text-slate-400 font-medium">v5.0</span></span>
+            </div>
+            <nav class="p-4 space-y-2 mt-4" id="nav-menu">
+                <button onclick="switchTab('overview')" id="nav-overview" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-50 text-indigo-600 font-bold transition-all">
+                    <span class="text-lg">📊</span> 业绩总览
+                </button>
+                <button onclick="switchTab('orders')" id="nav-orders" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
+                    <span class="text-lg">📦</span> 订单明细
+                </button>
+                <button onclick="switchTab('referral')" id="nav-referral" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
+                    <span class="text-lg">🤝</span> 发展客户
+                </button>
+                <button onclick="switchTab('profile')" id="nav-profile" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
+                    <span class="text-lg">👤</span> 个人中心
+                </button>
+            </nav>
+        </div>
+        <div class="p-4 border-t border-slate-50">
+            <div onclick="switchTab('profile')" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 cursor-pointer hover:bg-slate-100 transition-all">
+                <div id="userAvatar" class="w-10 h-10 rounded-full bg-indigo-200 flex items-center justify-center font-bold text-indigo-700">--</div>
+                <div class="text-left">
+                    <div id="userName" class="text-sm font-bold text-slate-800">加载中...</div>
+                    <div id="userId" class="text-[10px] text-slate-500 uppercase">ID: --</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 h-full overflow-y-auto relative bg-[#f8fafc]">
+        
+        <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-8 sticky top-0 z-20">
+            <h1 class="text-xl font-extrabold text-slate-800" id="page-title">业绩总览</h1>
+            <div class="flex items-center gap-6">
+                <div class="text-right border-r pr-6 border-slate-100 hidden sm:block">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">XTransfer 执行汇率 (-1%)</p>
+                    <p id="exchangeRate" class="text-sm font-black text-indigo-600">1 USD ≈ ¥7.05</p>
+                </div>
+                
+                <!-- 角色切换下拉框 -->
+                <div class="relative">
+                    <div class="flex items-center gap-2 bg-indigo-50 px-3 py-2 rounded-xl border border-indigo-100">
+                        <span class="text-xs text-indigo-600 font-bold">🎭 切换角色</span>
+                        <select id="roleSwitcher" onchange="switchRole(this.value)" class="bg-white text-xs font-bold text-slate-700 border border-indigo-200 rounded-lg px-2 py-1 outline-none focus:border-indigo-500 cursor-pointer">
+                            <option value="管理员" class="text-slate-700">👑 管理员</option>
+                            <option value="运营" class="text-slate-700">⚙️ 运营</option>
+                            <option value="财务" class="text-slate-700">💰 财务</option>
+                            <option value="业务经理" class="text-slate-700">💼 业务经理</option>
+                            <option value="业务员" selected class="text-slate-700">🤝 业务员</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="relative" id="notification-container">
+                    <button onclick="toggleNotifications()" class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-xl hover:bg-slate-100 relative transition-all cursor-pointer">
+                        🔔<span id="unread-dot" class="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border border-white animate-pulse"></span>
+                    </button>
+
+                    <div id="notification-panel" class="hidden absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 transform opacity-0 scale-95 transition-all duration-200 origin-top-right">
+                        <div class="p-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                            <h3 class="font-bold text-slate-800 text-sm">系统通知</h3>
+                            <button onclick="markAllRead()" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800">全部标为已读</button>
+                        </div>
+                        <div id="notificationList" class="max-h-80 overflow-y-auto">
+                            </div>
+                        <div class="p-3 text-center border-t border-slate-50 bg-white">
+                            <button class="text-[10px] font-bold text-slate-400 hover:text-indigo-600 transition-colors">查看所有历史通知</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="p-8 max-w-7xl mx-auto">
+
+            <div id="tab-overview" class="tab-content active space-y-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="vip-gradient rounded-3xl p-6 text-white shadow-lg shadow-indigo-200 relative overflow-hidden">
+                        <div class="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-indigo-100 mb-1 relative z-10">本月预估总佣金 (服务+采购)</p>
+                        <h3 id="monthCommission" class="text-3xl font-black mb-4 relative z-10">¥0.00</h3>
+                        <button onclick="switchTab('orders')" class="text-[10px] bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full w-fit relative z-10 transition-colors">查看明细 ➔</button>
+                    </div>
+                    
+                    <div class="glass-card rounded-3xl p-6 shadow-sm hover:-translate-y-1 transition-transform">
+                        <div class="flex justify-between items-start">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">采购类累计毛利 (阶梯)</p>
+                            <span id="commissionTier" class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold">10% 起步档</span>
+                        </div>
+                        <h3 id="totalProcurementProfit" class="text-2xl font-black text-slate-800 mt-1">¥0</h3>
+                        <p id="nextTierInfo" class="text-[10px] mt-2 text-slate-500 font-medium">距离 12% 档位还差 ¥0</p>
+                        <div class="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                            <div id="tierProgress" class="h-full bg-indigo-500 w-0 rounded-full"></div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card rounded-3xl p-6 shadow-sm hover:-translate-y-1 transition-transform border-l-4 border-amber-400">
+                        <div class="flex justify-between items-start">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">服务类累计毛利</p>
+                            <span class="px-2 py-1 bg-amber-50 text-amber-600 rounded text-[10px] font-bold border border-amber-100">40% 提成</span>
+                        </div>
+                        <h3 id="totalServiceProfit" class="text-2xl font-black text-slate-800 mt-1">¥0</h3>
+                        <p class="text-[10px] mt-2 text-slate-400 font-medium">含导游/医疗/数字化/用车等</p>
+                        <div class="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                            <div class="h-full bg-amber-400 w-full rounded-full opacity-80"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                    <h3 class="text-lg font-bold mb-4 relative z-10">佣金模拟预估器 (V5标准)</h3>
+                    <p class="text-xs text-slate-400 mb-6 relative z-10">采购类按阶梯毛利试算，服务类按固定比例试算。</p>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10">
+                        <input type="number" id="sim-amount" placeholder="输入外币金额" class="bg-white/10 border border-white/20 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all text-sm">
+                        <select id="sim-currency" class="bg-white/10 border border-white/20 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all text-sm">
+                            <option class="text-slate-900" value="USD">USD - 美元</option>
+                            <option class="text-slate-900" value="EUR">EUR - 欧元</option>
+                            <option class="text-slate-900" value="GBP">GBP - 英镑</option>
+                            <option class="text-slate-900" value="HKD">HKD - 港币</option>
+                        </select>
+                        <select id="sim-type" class="bg-white/10 border border-white/20 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all text-sm">
+                            <option class="text-slate-900" value="sourcing">采购类 (阶梯提成)</option>
+                            <option class="text-slate-900" value="service">服务类 (40%直提)</option>
+                        </select>
+                        <button onclick="calculateCommission()" class="bg-indigo-600 hover:bg-indigo-500 transition-all rounded-xl font-bold text-sm shadow-lg shadow-indigo-500/30">立即试算</button>
+                    </div>
+                    
+                    <div id="sim-result" class="hidden relative z-10 mt-6 transition-all duration-300"></div>
+                </div>
+            </div>
+
+            <div id="tab-orders" class="tab-content space-y-6">
+                <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-slate-800">业绩订单明细</h3>
+                            <p class="text-[10px] text-slate-400 mt-1">业务员具备"产品/物流成本"的只读权限，以便进行利润分析。</p>
+                        </div>
+                        <div class="relative">
+                            <input type="text" id="orderSearch" placeholder="搜索订单编号..." class="text-xs border border-slate-200 rounded-lg pl-8 pr-3 py-2 outline-none focus:border-indigo-500 transition-all">
+                            <span class="absolute left-2.5 top-2 text-slate-400">🔍</span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm border-collapse">
+                            <thead>
+                                <tr class="text-[10px] uppercase tracking-widest text-slate-400 font-bold border-b border-slate-100 bg-white">
+                                    <th class="p-5 pl-8">订单ID / 日期</th>
+                                    <th class="p-5">业务类型</th>
+                                    <th class="p-5 text-right bg-slate-50/50">外币金额</th>
+                                    <th class="p-5 text-right bg-slate-50/50">人民币金额</th>
+                                    <th class="p-5 pr-12 text-right">状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody" class="text-slate-700 font-medium">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-referral" class="tab-content space-y-6">
+                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-8 text-white flex flex-col md:flex-row justify-between items-center gap-8 shadow-xl">
+                    <div class="space-y-2 text-center md:text-left">
+                        <p class="text-[10px] font-bold text-indigo-200 uppercase tracking-widest bg-white/10 px-3 py-1 rounded-full w-fit mx-auto md:mx-0">My Referral Code</p>
+                        <h2 id="myReferralCode" class="text-4xl md:text-5xl font-mono font-black tracking-widest drop-shadow-md">----</h2>
+                        <p class="text-sm text-indigo-100 max-w-md mt-2">客户注册时通过 <code class="bg-white/20 px-1 rounded">referrer_id</code> 绑定为您名下的客户。</p>
+                    </div>
+                    <button onclick="copyReferralLink()" class="bg-white text-indigo-700 px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-indigo-50 transition-all text-sm">复制专属邀请链接</button>
+                </div>
+
+                <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                    <div class="flex justify-between items-end mb-6">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-lg">📈 推荐提成等级</h3>
+                            <p class="text-xs text-slate-400 mt-1">基于下级客户累计消费额自动升级提成比例。</p>
+                        </div>
+                        <div class="text-right">
+                            <span id="refRateDisplay" class="text-2xl font-black text-indigo-600">2%</span>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">当前比例</p>
+                        </div>
+                    </div>
+                    <div class="relative pt-1">
+                        <div class="flex mb-2 items-center justify-between text-xs font-bold">
+                            <div id="refProgSum" class="text-indigo-600">累计推荐消费: ¥0</div>
+                            <div id="refNextLabel" class="text-slate-400 italic">--</div>
+                        </div>
+                        <div class="overflow-hidden h-3 mb-4 text-xs flex rounded-full bg-slate-100">
+                            <div id="refProgressBar" style="width:0%" class="bg-indigo-500 transition-all duration-700"></div>
+                        </div>
+                        <div class="grid grid-cols-4 text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                            <div>¥0 (2%)</div><div class="text-center">¥2万 (3%)</div><div class="text-center">¥10万 (4%)</div><div class="text-right">¥50万 (5%)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                        <div class="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+                            <h3 class="font-bold text-slate-800">👥 我招募的客户</h3>
+                            <span id="recruitCount" class="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold">0 位</span>
+                        </div>
+                        <div class="max-h-[400px] overflow-y-auto">
+                            <table class="w-full text-left text-sm border-collapse">
+                                <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-400 sticky top-0">
+                                    <tr>
+                                        <th class="px-6 py-4">客户姓名</th>
+                                        <th class="px-6 py-4">注册日期</th>
+                                        <th class="px-6 py-4 text-right">状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recruitListBody" class="text-slate-600"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                        <div class="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+                            <h3 class="font-bold text-slate-800">💰 推荐奖励记录</h3>
+                            <span id="refTotalPayout" class="text-green-600 font-black text-sm">¥0.00</span>
+                        </div>
+                        <div class="max-h-[400px] overflow-y-auto">
+                            <table class="w-full text-left text-sm border-collapse">
+                                <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-400 sticky top-0">
+                                    <tr>
+                                        <th class="px-6 py-4">来源订单</th>
+                                        <th class="px-6 py-4 text-center">比例</th>
+                                        <th class="px-6 py-4 text-right">奖金</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="payoutListBody" class="text-slate-600"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-profile" class="tab-content space-y-6">
+                <div class="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-8">
+                    <div id="profileAvatar" class="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center text-4xl font-black text-indigo-600 shrink-0">--</div>
+                    <div class="flex-1 text-center md:text-left">
+                        <h2 id="profileName" class="text-2xl font-extrabold text-slate-800 mb-1">加载中...</h2>
+                        <p class="text-sm font-bold text-slate-500 mb-4">系统角色：<span class="text-indigo-600">业务员 (Salesperson)</span></p>
+                        <div class="flex flex-wrap gap-3 justify-center md:justify-start">
+                            <span id="profilePhone" class="px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-600">手机：--</span>
+                            <span id="profileId" class="px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-600">客户编号：--</span>
+                            <span class="px-3 py-1 bg-green-50 border border-green-200 rounded-lg text-xs font-bold text-green-600">状态：已通过审核</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
+                            <h3 class="font-bold text-slate-800 mb-2 text-lg">联系方式</h3>
+                            <p class="text-xs text-slate-400 mb-6">完善以下联系方式，便于客户和团队与您沟通。</p>
+                            
+                            <form id="profileForm" class="space-y-5">
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">📧 邮箱 (Email)</label>
+                                    <input type="email" id="profileEmail" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 outline-none transition-all text-sm font-medium">
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">💬 微信 (WeChat)</label>
+                                        <input type="text" id="profileWechat" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 outline-none transition-all text-sm font-medium">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">📱 WhatsApp</label>
+                                        <input type="text" id="profileWhatsapp" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 outline-none transition-all text-sm font-medium">
+                                    </div>
+                                </div>
+
+                                <div class="pt-4">
+                                    <button type="submit" class="bg-slate-900 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-600 transition-all text-sm">💾 保存联系方式</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="bg-red-50/50 rounded-3xl p-8 border border-red-100 shadow-sm">
+                            <h3 class="text-lg font-bold text-red-600 mb-2">账号与安全</h3>
+                            <p class="text-xs text-red-400 mb-6 leading-relaxed">管理您的登录状态或永久注销业务员账户。</p>
+                            
+                            <div class="flex flex-col gap-3">
+                                <button onclick="logout()" class="w-full py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-50 hover:text-indigo-600 transition-all shadow-sm flex items-center justify-center gap-2 group">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 group-hover:stroke-indigo-600 transition-colors">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                                    </svg>
+                                    切换账号 / 登出
+                                </button>
+                                
+                                <button onclick="showToast('请联系管理员注销账户')" class="w-full py-3 bg-white border border-red-200 text-red-600 rounded-xl font-bold text-xs hover:bg-red-50 hover:border-red-300 transition-all shadow-sm flex items-center justify-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    注销账户
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Supabase 配置
+        const SUPABASE_URL = 'https://xxouixhnhauvgrrchako.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4b3VpeGhuaGF1dmdycmNoYWtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTk2NjYsImV4cCI6MjA4NTczNTY2Nn0.ph24qP9wXOAvsblwkobH9MhSrDFJ4g5vyGof7aUjjVw';
+        
+        // 初始化 Supabase（带错误处理）
+        let supabase = null;
+        try {
+            if (window.supabase && window.supabase.createClient) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('Supabase 初始化成功');
+            } else {
+                console.error('Supabase 库未加载，请检查网络连接');
+            }
+        } catch (e) {
+            console.error('Supabase 初始化失败:', e);
+        }
+
+        let currentUser = null;
+        let currentRate = 7.05;
+
+        // 检查登录状态
+        function checkAuth() {
+            const userData = localStorage.getItem('baisheng_user');
+            if (!userData) {
+                window.location.href = 'login.html';
+                return null;
+            }
+            const user = JSON.parse(userData);
+            const roles = Array.isArray(user.role) ? user.role : [user.role];
+            // 允许所有非客户角色访问（支持角色切换）
+            const allowedRoles = ['管理员', '运营', '财务', '业务经理', '业务员'];
+            const hasAccess = roles.some(r => allowedRoles.includes(r));
+            if (!hasAccess) {
+                showToast('无权访问此页面');
+                setTimeout(() => window.location.href = 'login.html', 1500);
+                return null;
+            }
+            return user;
+        }
+
+        // 退出登录
+        function logout() {
+            if (confirm('确定退出？')) {
+                localStorage.removeItem('baisheng_user');
+                window.location.href = 'login.html';
+            }
+        }
+
+        // Toast 提示
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // 角色切换配置
+        const rolePages = {
+            '管理员': 'admin.html',
+            '运营': 'operations.html',
+            '财务': 'finance.html',
+            '业务经理': 'manager.html',
+            '业务员': 'salesperson.html'
+        };
+
+        // 切换角色
+        function switchRole(newRole) {
+            if (!currentUser) {
+                showToast('请先登录');
+                return;
+            }
+            
+            // 获取用户拥有的角色列表
+            const userRoles = currentUser.role || [];
+            const rolesArray = Array.isArray(userRoles) ? userRoles : userRoles.split(',').map(r => r.trim());
+            
+            // 检查用户是否有该角色权限
+            if (!rolesArray.includes(newRole)) {
+                showToast('❌ 您没有该角色的权限');
+                const currentPageRole = getCurrentPageRole();
+                document.getElementById('roleSwitcher').value = currentPageRole;
+                return;
+            }
+            
+            // 如果切换的是当前角色，不做任何操作
+            const currentPageRole = getCurrentPageRole();
+            if (newRole === currentPageRole) return;
+            
+            // 跳转到对应角色页面
+            const targetPage = rolePages[newRole];
+            if (targetPage) {
+                showToast(`🔄 正在切换到 ${newRole}...`);
+                setTimeout(() => {
+                    window.location.href = targetPage;
+                }, 300);
+            }
+        }
+
+        // 获取当前页面对应的角色
+        function getCurrentPageRole() {
+            const path = window.location.pathname;
+            if (path.includes('管理员')) return '管理员';
+            if (path.includes('运营')) return '运营';
+            if (path.includes('财务')) return '财务';
+            if (path.includes('业务经理')) return '业务经理';
+            if (path.includes('业务员')) return '业务员';
+            return '业务员';
+        }
+
+        // 初始化角色切换下拉框
+        function initRoleSwitcher() {
+            const roleSwitcher = document.getElementById('roleSwitcher');
+            if (!roleSwitcher || !currentUser) return;
+            
+            // 获取用户拥有的角色列表
+            const userRoles = currentUser.role || [];
+            const rolesArray = Array.isArray(userRoles) ? userRoles : userRoles.split(',').map(r => r.trim());
+            
+            // 禁用没有权限的角色选项
+            const options = roleSwitcher.querySelectorAll('option');
+            options.forEach(option => {
+                const roleValue = option.value;
+                // 保存原始文本（去除可能已添加的无权限标记）
+                const originalText = option.textContent.replace(/ \(无权限\)$/, '');
+                if (!rolesArray.includes(roleValue)) {
+                    option.disabled = true;
+                    option.textContent = originalText + ' (无权限)';
+                    option.classList.add('text-slate-400');
+                } else {
+                    option.disabled = false;
+                    option.textContent = originalText;
+                    option.classList.remove('text-slate-400');
+                }
+            });
+            
+            // 设置当前选中项
+            const currentPageRole = getCurrentPageRole();
+            roleSwitcher.value = currentPageRole;
+        }
+
+        // 加载数据
+        async function loadCurrentUser() {
+            if (!supabase) {
+                console.warn('Supabase 未初始化，跳过加载用户数据');
+                return;
+            }
+            try {
+                const userId = currentUser.user_id || currentUser.id;
+                if (!userId) {
+                    console.error('用户ID不存在');
+                    return;
+                }
+                
+                const { data, error } = await supabase
+                    .from('01_user_master')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .single();
+                
+                if (error) {
+                    console.error('加载用户数据失败:', error);
+                    return;
+                }
+                
+                if (data) {
+                    currentUser = { ...currentUser, ...data };
+                    localStorage.setItem('baisheng_user', JSON.stringify(currentUser));
+                }
+            } catch (err) {
+                console.error('加载当前用户失败:', err);
+            }
+        }
+
+        async function loadData() {
+            try {
+                await loadCurrentUser();
+                await Promise.all([
+                    loadExchangeRate(),
+                    loadOverviewData(),
+                    loadOrders(),
+                    loadReferralStats(),
+                    loadNotifications()
+                ]);
+                updateUserInfo();
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                showToast('数据加载失败，请刷新重试');
+            }
+        }
+
+        // 加载汇率
+        async function loadExchangeRate() {
+            if (!supabase) return;
+            try {
+                const { data, error } = await supabase
+                    .from('08_exchange_rate')
+                    .select('*')
+                    .eq('from_currency', 'USD')
+                    .eq('to_currency', 'CNY')
+                    .order('updated_at', { ascending: false })
+                    .limit(1);
+                
+                if (error) {
+                    console.error('加载汇率失败:', error);
+                    return;
+                }
+                
+                if (data && data.length > 0) {
+                    currentRate = parseFloat(data[0].exec_rate) * 0.99; // 减1%
+                    document.getElementById('exchangeRate').textContent = `1 USD ≈ ¥${currentRate.toFixed(2)}`;
+                }
+            } catch (err) {
+                console.error('加载汇率出错:', err);
+            }
+        }
+
+        // ============================================================
+        // 核心逻辑修改：按服务类/采购类分别统计
+        // ============================================================
+        async function loadOverviewData() {
+            if (!currentUser || !supabase) return;
+            try {
+                // 1. 获取本月第一天和最后一天
+                const now = new Date();
+                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+                const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+
+                // 2. 从 02_order_master 拉取本月所有"已完成"订单
+                const { data: orders, error } = await supabase
+                    .from('02_order_master')
+                    .select('biz_type, gross_profit, commission_salesman, status')
+                    .eq('salesman_id', currentUser.user_id || currentUser.id)
+                    .eq('status', '已完成') 
+                    .gte('updated_at', firstDay)
+                    .lte('updated_at', lastDay);
+
+                if (error) {
+                    console.error('加载业绩数据失败:', error);
+                    return;
+                }
+
+                // 3. 分类定义 (按您的要求)
+                // 采购类
+                const procurementTypes = ['sourcing', 'dropshipping', 'group_buy'];
+                // 服务类 (把 tourist_purchase 移到了这里)
+                const serviceTypes = ['tour_guide', 'medical_guide', 'digital_kit', 'airport_pickup', 'car_service', 'tourist_purchase'];
+
+                // 4. 计算统计
+                let procurementProfit = 0; // 采购类累计毛利
+                let serviceProfit = 0;     // 服务类累计毛利 (新指标)
+                let serviceComm = 0;       // 服务类实际佣金
+
+                orders?.forEach(o => {
+                    const profit = parseFloat(o.gross_profit) || 0;
+                    const comm = parseFloat(o.commission_salesman) || 0;
+
+                    if (procurementTypes.includes(o.biz_type)) {
+                        procurementProfit += profit; // 采购类只累加毛利，后面算阶梯
+                    } else if (serviceTypes.includes(o.biz_type)) {
+                        serviceProfit += profit;     // 累加服务类毛利 (用于卡片显示)
+                        serviceComm += comm;         // 累加服务类佣金 (用于算总钱)
+                    }
+                });
+
+                // 5. 执行采购类"阶梯算法" (复刻 SQL 逻辑)
+                let procurementComm = 0;
+                let tier = '10%';
+                let nextTierDiff = 0;
+                let progress = 0;
+
+                if (procurementProfit <= 10000) {
+                    procurementComm = procurementProfit * 0.10;
+                    tier = '10%';
+                    nextTierDiff = 10000 - procurementProfit;
+                    progress = (procurementProfit / 10000) * 100;
+                } else {
+                    // 超过1万的部分按12%算
+                    procurementComm = 1000 + (procurementProfit - 10000) * 0.12;
+                    tier = '12%';
+                    nextTierDiff = 0; // 已满级
+                    progress = 100;
+                }
+
+                // 6. 汇总总佣金 (采购阶梯佣金 + 服务实际佣金)
+                const totalEstimatedComm = procurementComm + serviceComm;
+
+                // 7. 更新 UI 显示
+                
+                // 卡片1：总佣金
+                document.getElementById('monthCommission').textContent = `¥${totalEstimatedComm.toLocaleString('zh-CN', {minimumFractionDigits: 2})}`;
+                
+                // 卡片2：采购类毛利 & 进度条
+                document.getElementById('totalProcurementProfit').textContent = `¥${Math.floor(procurementProfit).toLocaleString()}`;
+                document.getElementById('commissionTier').textContent = `${tier} 档位`;
+                document.getElementById('commissionTier').className = `px-2 py-1 rounded text-[10px] font-bold ${tier === '12%' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-50 text-indigo-600'}`;
+                
+                document.getElementById('nextTierInfo').textContent = nextTierDiff > 0 
+                    ? `距离 12% 档位还差毛利 ¥${nextTierDiff.toFixed(0)}` 
+                    : '🎉 已达到最高 12% 档位';
+                    
+                document.getElementById('tierProgress').style.width = `${Math.min(progress, 100)}%`;
+
+                // 卡片3：服务类累计毛利 (替换了原来的"资质列表")
+                // 注意：这里我们显示"服务类总毛利"，而不是资质
+                document.getElementById('totalServiceProfit').textContent = `¥${Math.floor(serviceProfit).toLocaleString()}`;
+
+            } catch (err) {
+                console.error('加载业绩总览出错:', err);
+            }
+        }
+
+        // 加载订单
+        async function loadOrders() {
+            if (!currentUser || !supabase) return;
+            try {
+                const { data: orders, error } = await supabase
+                    .from('02_order_master')
+                    .select('order_id, biz_type, currency, amount_fc, amount_cny, status, updated_at, order_info')
+                    .eq('salesman_id', currentUser.user_id || currentUser.id)
+                    .order('updated_at', { ascending: false });
+                
+                if (error) {
+                    console.error('加载订单失败:', error);
+                    return;
+                }
+                
+                const tbody = document.getElementById('ordersTableBody');
+                if (!orders || orders.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">暂无订单数据</td></tr>`;
+                    return;
+                }
+                
+                tbody.innerHTML = orders.map(order => {
+                    const statusColors = {
+                        '进行中': 'bg-blue-50 text-blue-600',
+                        '已完成': 'bg-green-50 text-green-600',
+                        '已取消': 'bg-slate-100 text-slate-500',
+                        '已结算': 'bg-purple-50 text-purple-600'
+                    };
+                
+                    const statusClass = statusColors[order.status] || 'bg-slate-50 text-slate-600';
+                    const orderDate = order.updated_at ? new Date(order.updated_at).toLocaleDateString('zh-CN') : '-';
+                    
+                    return `
+                        <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
+                            <td class="p-5 pl-8">
+                                <div class="font-mono text-xs font-bold">${order.order_id || '-'}</div>
+                                <div class="text-[10px] text-slate-400 mt-0.5">${orderDate}</div>
+                            </td>
+                            <td class="p-5">
+                                <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-indigo-500"></span>${order.biz_type || 'Sourcing'}</div>
+                            </td>
+                            <td class="p-5 text-right text-slate-500 font-mono text-xs">${order.currency || 'USD'} ${parseFloat(order.amount_fc || 0).toLocaleString()}</td>
+                            <td class="p-5 text-right text-slate-500 font-mono text-xs">¥${parseFloat(order.amount_cny || 0).toLocaleString()}</td>
+                            <td class="p-5 pr-8 text-right"><span class="px-3 py-1 ${statusClass} rounded-lg text-[10px] font-black uppercase tracking-wider">${order.status}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('加载订单出错:', err);
+                document.getElementById('ordersTableBody').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-400">加载失败</td></tr>`;
+            }
+        }
+
+        // 加载推荐统计
+        // 推荐中心逻辑：核心修复连接 referrer_id
+        async function loadReferralStats() {
+            if (!currentUser || !supabase) return;
+            const uid = currentUser.user_id || currentUser.id;
+            document.getElementById('myReferralCode').textContent = currentUser.referral_code || 'BS8A2D';
+
+            try {
+                // 1. 获取招募客户列表 (通过 referrer_id 关联 01 表)
+                const { data: recs } = await supabase
+                    .from('01_user_master')
+                    .select('real_name, created_at, first_service_at')
+                    .eq('referrer_id', uid)
+                    .order('created_at', { ascending: false });
+
+                document.getElementById('recruitCount').textContent = `${recs?.length || 0} 位`;
+                document.getElementById('recruitListBody').innerHTML = recs?.map(r => `
+                    <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4 font-bold text-slate-700">${mask(r.real_name)}</td>
+                        <td class="px-6 py-4 text-xs text-slate-400 font-mono">${r.created_at.slice(0, 10)}</td>
+                        <td class="px-6 py-4 text-right">${r.first_service_at ? '<span class="text-green-500 font-bold">✅ 已成单</span>' : '<span class="text-slate-300">⏳ 待转化</span>'}</td>
+                    </tr>`).join('') || '<tr><td colspan="3" class="p-8 text-center text-slate-400">暂无招募记录</td></tr>';
+
+                // 2. 获取奖励明细 (关联 05 表)
+                const { data: pays } = await supabase
+                    .from('05_referral_details')
+                    .select('*')
+                    .eq('referrer_id', uid)
+                    .order('settle_month', { ascending: false });
+
+                let tSpend = 0, tPay = 0;
+                pays?.forEach(p => { 
+                    tSpend += parseFloat(p.amount_cny || 0); 
+                    tPay += parseFloat(p.payout || 0); 
+                });
+
+                document.getElementById('refTotalPayout').textContent = `¥${tPay.toLocaleString('zh-CN', {minimumFractionDigits: 2})}`;
+                document.getElementById('refProgSum').textContent = `累计推荐消费: ¥${tSpend.toLocaleString()}`;
+                document.getElementById('payoutListBody').innerHTML = pays?.map(p => `
+                    <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4 text-xs font-mono text-slate-500">${p.order_id.slice(0, 8)}...</td>
+                        <td class="px-6 py-4 text-xs font-bold text-indigo-600 text-center">${(parseFloat(p.rate)*100).toFixed(1)}%</td>
+                        <td class="px-6 py-4 text-right font-black text-green-600">¥${parseFloat(p.payout).toFixed(2)}</td>
+                    </tr>`).join('') || '<tr><td colspan="3" class="p-8 text-center text-slate-400">暂无奖励发放记录</td></tr>';
+
+                // 3. 计算并更新等级进度条
+                updateRefTierUI(tSpend);
+            } catch (err) { console.error('推荐中心加载失败:', err); }
+        }
+
+        // 等级进度条逻辑
+        function updateRefTierUI(spend) {
+            let rate = "2%", prog = 0, next = "";
+            if (spend < 20000) { rate = "2%"; prog = (spend/20000)*25; next = `距 3% 还差 ¥${(20000-spend).toFixed(0)}`; }
+            else if (spend < 100000) { rate = "3%"; prog = 25+((spend-20000)/80000)*25; next = `距 4% 还差 ¥${(100000-spend).toFixed(0)}`; }
+            else if (spend < 500000) { rate = "4%"; prog = 50+((spend-100000)/400000)*25; next = `距 5% 还差 ¥${(500000-spend).toFixed(0)}`; }
+            else { rate = "5%"; prog = 100; next = "🎉 已达最高提成等级"; }
+            
+            document.getElementById('refRateDisplay').textContent = rate;
+            document.getElementById('refProgressBar').style.width = `${prog}%`;
+            document.getElementById('refNextLabel').textContent = next;
+        }
+
+        // 辅助：脱敏函数
+        function mask(n) { if(!n) return '--'; return n.length <= 2 ? n[0]+'*' : n[0]+'**'+n.slice(-1); }
+
+        // 加载通知
+        async function loadNotifications() {
+            try {
+                const notifList = document.getElementById('notificationList');
+                if (!notifList) return;
+                
+                notifList.innerHTML = `
+                    <div class="p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors">
+                        <div class="flex items-start gap-3">
+                            <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 shrink-0 text-lg">💰</div>
+                            <div>
+                                <p class="text-xs font-bold text-slate-800">预估佣金已重新计算</p>
+                                <p class="text-[10px] text-slate-500 mt-1 leading-relaxed">您的订单财务已录入成本，预估佣金已更新。</p>
+                                <p class="text-[9px] text-slate-400 mt-2">刚刚</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                console.error('加载通知出错:', err);
+            }
+        }
+
+
+        // 更新用户信息
+        function updateUserInfo() {
+            if (!currentUser) return;
+            const displayName = currentUser.real_name || currentUser.name || '业务员';
+            const userId = currentUser.user_id || currentUser.id || 'USER-0000';
+            
+            document.getElementById('userName').textContent = displayName;
+            document.getElementById('userId').textContent = `ID: ${userId}`;
+            document.getElementById('userAvatar').textContent = displayName.substring(0, 2).toUpperCase();
+            document.getElementById('profileName').textContent = displayName;
+            document.getElementById('profileId').textContent = `客户编号：${userId}`;
+            document.getElementById('profilePhone').textContent = `手机：${currentUser.phone || 'N/A'}`;
+            document.getElementById('profileAvatar').textContent = displayName.substring(0, 2).toUpperCase();
+            document.getElementById('profileEmail').value = currentUser.email || '';
+            document.getElementById('profileWechat').value = currentUser.wechat || '';
+            document.getElementById('profileWhatsapp').value = currentUser.whatsapp || '';
+        }
+
+        // Tab 切换
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('bg-indigo-50', 'text-indigo-600', 'font-bold');
+                el.classList.add('text-slate-500', 'font-medium');
+            });
+            const activeNav = document.getElementById('nav-' + tabId);
+            if (activeNav) {
+                activeNav.classList.remove('text-slate-500', 'font-medium');
+                activeNav.classList.add('bg-indigo-50', 'text-indigo-600', 'font-bold');
+            }
+
+            const titles = {
+                'overview': '业绩总览',
+                'orders': '订单明细 (含成本)',
+                'referral': '发展客户与推荐树',
+                'profile': '个人中心与安全设置'
+            };
+            document.getElementById('page-title').innerText = titles[tabId] || '业务系统';
+        }
+
+        // ============================================================
+        // 模拟器也同步 V5 标准
+        // ============================================================
+        function calculateCommission() {
+            const amount = parseFloat(document.getElementById('sim-amount').value);
+            const currency = document.getElementById('sim-currency').value;
+            const type = document.getElementById('sim-type').value;
+
+            if (!amount || amount <= 0) {
+                showToast('请输入有效的外币金额！');
+                return;
+            }
+            
+            const rates = { 'USD': 7.05, 'EUR': 7.72, 'GBP': 9.10, 'AUD': 4.60, 'CAD': 5.20, 'SGD': 5.30, 'CHF': 8.20, 'JPY': 0.048, 'HKD': 0.91, 'NZD': 4.30 };
+            const rate = rates[currency] || 7.05;
+            const rmbRevenue = amount * rate;
+            
+            let commission = 0;
+            let calcDetail = '';
+
+            if (type === 'sourcing') {
+                const estimatedProfit = rmbRevenue * 0.20; 
+                commission = estimatedProfit * 0.10; 
+                calcDetail = `假设20%毛利 (¥${estimatedProfit.toFixed(0)}) × 10% 起步档位`;
+            } else {
+                commission = rmbRevenue * 0.40;
+                calcDetail = `服务类直提：营收 (¥${rmbRevenue.toFixed(0)}) × 40% 比例`;
+            }
+            
+            const resultDiv = document.getElementById('sim-result');
+            resultDiv.innerHTML = `
+                <div class="p-5 bg-indigo-800/40 rounded-2xl border border-indigo-500/30 text-sm animate-pulse-once">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-indigo-200">折合人民币:</span> 
+                        <strong class="text-white text-lg">¥${rmbRevenue.toFixed(2)}</strong>
+                    </div>
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-indigo-200">计算说明:</span> 
+                        <span class="text-indigo-300 text-xs text-right">${calcDetail}</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-3 border-t border-indigo-500/30">
+                        <span class="text-green-400 font-bold">预估到手佣金:</span> 
+                        <span class="text-green-400 font-black text-2xl">¥${commission.toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+            resultDiv.classList.remove('hidden');
+        }
+
+        function copyReferralLink() {
+            const code = currentUser?.referral_code || 'BS8A2D';
+            const link = `${window.location.origin}/注册.html?ref=${code}`;
+            navigator.clipboard.writeText(link).then(() => showToast('链接已复制到剪贴板'));
+        }
+
+        function toggleNotifications() {
+            const panel = document.getElementById('notification-panel');
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                setTimeout(() => {
+                    panel.classList.remove('opacity-0', 'scale-95');
+                    panel.classList.add('opacity-100', 'scale-100');
+                }, 10);
+            } else {
+                panel.classList.remove('opacity-100', 'scale-100');
+                panel.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => panel.classList.add('hidden'), 200);
+            }
+        }
+
+        function markAllRead() {
+            document.getElementById('unread-dot').style.display = 'none';
+        }
+
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser) return;
+            if (!supabase) {
+                showToast('系统未初始化，请刷新页面重试');
+                return;
+            }
+            try {
+                const email = document.getElementById('profileEmail').value;
+                const wechat = document.getElementById('profileWechat').value;
+                const whatsapp = document.getElementById('profileWhatsapp').value;
+                const updateData = {};
+                if (email && email.trim()) updateData.email = email.trim(); else if (email === '') updateData.email = null;
+                if (wechat && wechat.trim()) updateData.wechat = wechat.trim(); else if (wechat === '') updateData.wechat = null;
+                if (whatsapp && whatsapp.trim()) updateData.whatsapp = whatsapp.trim(); else if (whatsapp === '') updateData.whatsapp = null;
+                
+                const { error } = await supabase
+                    .from('01_user_master')
+                    .update(updateData)
+                    .eq('user_id', currentUser.user_id);
+                if (error) throw error;
+                await loadCurrentUser();
+                updateUserInfo();
+                showToast('联系方式已更新');
+            } catch (error) {
+                showToast('保存失败：' + error.message);
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                currentUser = checkAuth();
+                if (!currentUser) {
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    return;
+                }
+                
+                if (!supabase) {
+                    console.error('Supabase 未初始化，无法加载数据');
+                    showToast('系统初始化失败，请刷新页面重试');
+                    updateUserInfo();
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    return;
+                }
+                
+                await loadData();
+                initRoleSwitcher(); // 初始化角色切换下拉框
+                document.getElementById('loadingOverlay').style.display = 'none';
+            } catch (err) {
+                console.error('页面初始化失败:', err);
+                showToast('页面加载失败: ' + err.message);
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+        });
+
+        document.addEventListener('click', function(event) {
+            const container = document.getElementById('notification-container');
+            const panel = document.getElementById('notification-panel');
+            if (container && panel && !container.contains(event.target) && !panel.classList.contains('hidden')) {
+                toggleNotifications();
+            }
+        });
+    </script>
+</body>
+</html>
