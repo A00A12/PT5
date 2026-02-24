@@ -59,10 +59,14 @@
                     <span class="text-lg">📊</span> 业绩总览
                 </button>
                 <button onclick="switchTab('orders')" id="nav-orders" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
-                    <span class="text-lg">📦</span> 订单明细
+                    <span class="text-lg">📦</span> 抢单与明细
                 </button>
                 <button onclick="switchTab('referral')" id="nav-referral" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
                     <span class="text-lg">🤝</span> 发展客户
+                </button>
+                <button onclick="switchTab('tasks')" id="nav-tasks" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
+                    <span>🔔</span> 任务通知
+                    <span id="nav-task-badge" class="hidden ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">0</span>
                 </button>
                 <button onclick="switchTab('profile')" id="nav-profile" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
                     <span class="text-lg">👤</span> 个人中心
@@ -90,7 +94,6 @@
                     <p id="exchangeRate" class="text-sm font-black text-indigo-600">1 USD ≈ ¥7.05</p>
                 </div>
                 
-                <!-- 角色切换下拉框 -->
                 <div class="relative">
                     <div class="flex items-center gap-2 bg-indigo-50 px-3 py-2 rounded-xl border border-indigo-100">
                         <span class="text-xs text-indigo-600 font-bold">🎭 切换角色</span>
@@ -184,15 +187,47 @@
             </div>
 
             <div id="tab-orders" class="tab-content space-y-6">
+
+                <div class="bg-white rounded-3xl border border-blue-100 shadow-sm overflow-hidden border-l-4 border-l-blue-500 mb-6">
+                    <div class="p-6 border-b border-blue-50 bg-blue-50/30 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2">📢 公共抢单池</h3>
+                            <p class="text-[10px] text-slate-400 mt-1">客户自助下单，尚未分配业务员的订单。先到先得。</p>
+                        </div>
+                        <button onclick="loadAvailableOrders()" class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-200 transition-colors">
+                            🔄 刷新大厅
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm border-collapse">
+                            <thead>
+                                <tr class="text-[10px] uppercase tracking-widest text-slate-400 font-bold border-b border-blue-50 bg-white">
+                                    <th class="p-5 pl-8">订单ID / 发单时间</th>
+                                    <th class="p-5">业务类型</th>
+                                    <th class="p-5 text-right bg-blue-50/20">外币金额</th>
+                                    <th class="p-5 text-right bg-blue-50/20">折合人民币</th>
+                                    <th class="p-5 pr-8 text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="availableOrdersBody" class="text-slate-700 font-medium">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
                 <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                     <div class="p-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
                         <div>
                             <h3 class="font-bold text-slate-800">业绩订单明细</h3>
-                            <p class="text-[10px] text-slate-400 mt-1">业务员具备"产品/物流成本"的只读权限，以便进行利润分析。</p>
+                            <p class="text-[10px] text-slate-400 mt-1">业务员可录入新订单，成本由财务后续补录。</p>
                         </div>
-                        <div class="relative">
-                            <input type="text" id="orderSearch" placeholder="搜索订单编号..." class="text-xs border border-slate-200 rounded-lg pl-8 pr-3 py-2 outline-none focus:border-indigo-500 transition-all">
-                            <span class="absolute left-2.5 top-2 text-slate-400">🔍</span>
+                        <div class="flex items-center gap-3">
+                            <button onclick="openNewOrderModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all flex items-center gap-2">
+                                <span>+</span> 新建订单
+                            </button>
+                            <div class="relative">
+                                <input type="text" id="orderSearch" placeholder="搜索订单编号..." class="text-xs border border-slate-200 rounded-lg pl-8 pr-3 py-2 outline-none focus:border-indigo-500 transition-all">
+                                <span class="absolute left-2.5 top-2 text-slate-400">🔍</span>
+                            </div>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -286,6 +321,17 @@
                             </table>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div id="tab-tasks" class="tab-content space-y-6">
+                <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                     <div class="p-6 border-b border-slate-50 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800">任务通知 (Task Publish)</h3>
+                        <button onclick="loadTasks()" class="text-xs font-bold text-teal-600 hover:underline">刷新列表</button>
+                    </div>
+                    <div id="task-list-container" class="divide-y divide-slate-50">
+                        </div>
                 </div>
             </div>
 
@@ -475,7 +521,13 @@
         // 初始化角色切换下拉框
         function initRoleSwitcher() {
             const roleSwitcher = document.getElementById('roleSwitcher');
-            if (!roleSwitcher || !currentUser) return;
+            if (!roleSwitcher) return;
+            
+            // 如果没有用户数据，显示所有选项（默认状态）
+            if (!currentUser) {
+                roleSwitcher.style.display = 'block';
+                return;
+            }
             
             // 获取用户拥有的角色列表
             const userRoles = currentUser.role || [];
@@ -542,9 +594,11 @@
                 await Promise.all([
                     loadExchangeRate(),
                     loadOverviewData(),
+                    loadAvailableOrders(), // <=== 【新增】：加载抢单大厅数据
                     loadOrders(),
                     loadReferralStats(),
-                    loadNotifications()
+                    loadNotifications(),
+                    loadTasks()
                 ]);
                 updateUserInfo();
             } catch (error) {
@@ -560,9 +614,8 @@
                 const { data, error } = await supabase
                     .from('08_exchange_rate')
                     .select('*')
-                    .eq('from_currency', 'USD')
-                    .eq('to_currency', 'CNY')
-                    .order('updated_at', { ascending: false })
+                    .eq('currency', 'USD')
+                    .order('captured_at', { ascending: false })
                     .limit(1);
                 
                 if (error) {
@@ -571,11 +624,97 @@
                 }
                 
                 if (data && data.length > 0) {
-                    currentRate = parseFloat(data[0].exec_rate) * 0.99; // 减1%
-                    document.getElementById('exchangeRate').textContent = `1 USD ≈ ¥${currentRate.toFixed(2)}`;
+                    currentRate = parseFloat(data[0].exec_rate);
+                    document.getElementById('exchangeRate').textContent = `1 USD ≈ ¥${currentRate.toFixed(4)}`;
                 }
             } catch (err) {
                 console.error('加载汇率出错:', err);
+            }
+        }
+
+        // ============================================================
+        // 抢单大厅核心功能 (新增)
+        // ============================================================
+        async function loadAvailableOrders() {
+            if (!supabase || !currentUser) return;
+            try {
+                const { data: availableOrders, error } = await supabase
+                    .from('02_order_master')
+                    .select('order_id, biz_type, currency, amount_fc, amount_cny, order_info, updated_at')
+                    .is('salesman_id', null) // 核心：无人接单的订单
+                    .eq('status', '进行中')
+                    .order('updated_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                const tbody = document.getElementById('availableOrdersBody');
+                if (!availableOrders || availableOrders.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400">🍵 目前没有客户下新的公共订单。</td></tr>`;
+                    return;
+                }
+                
+                tbody.innerHTML = availableOrders.map(order => {
+                    const orderDate = order.updated_at ? new Date(order.updated_at).toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}) : '-';
+                    return `
+                        <tr class="border-b border-blue-50 hover:bg-blue-50/50 transition-all">
+                            <td class="p-5 pl-8">
+                                <div class="font-mono text-xs font-bold text-slate-800">${order.order_id.slice(0, 18)}...</div>
+                                <div class="text-[10px] text-slate-400 mt-0.5">发单: ${orderDate}</div>
+                            </td>
+                            <td class="p-5">
+                                <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span><span class="font-bold text-slate-700">${order.biz_type || 'Unknown'}</span></div>
+                            </td>
+                            <td class="p-5 text-right font-mono text-xs text-slate-500">${order.currency || 'USD'} ${parseFloat(order.amount_fc || 0).toLocaleString()}</td>
+                            <td class="p-5 text-right font-mono text-xs text-blue-600 font-bold">¥${parseFloat(order.amount_cny || 0).toLocaleString()}</td>
+                            <td class="p-5 pr-8 text-right">
+                                <button onclick="acceptOrder('${order.order_id}')" class="px-4 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 transition-all shadow shadow-blue-500/30">
+                                    ⚡ 立即接单
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('加载抢单大厅失败:', err);
+                const tbody = document.getElementById('availableOrdersBody');
+                if(tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-400">加载大厅失败</td></tr>`;
+            }
+        }
+
+        async function acceptOrder(orderId) {
+            if(!confirm('⚡ 确认接下此订单吗？\n\n接单后该订单将归属为您负责，您需要与客户取得联系并跟进落实。')) return;
+            
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            
+            try {
+                // 利用乐观锁：只有当 salesman_id 依然是 null 时，更新才会成功
+                const { data, error } = await supabase
+                    .from('02_order_master')
+                    .update({ 
+                        salesman_id: currentUser.user_id || currentUser.id,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('order_id', orderId)
+                    .is('salesman_id', null)
+                    .select();
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    showToast('😭 哎呀，手慢了！该订单已被其他业务员抢走。');
+                } else {
+                    showToast('✅ 接单成功！订单已移入“我的订单”中。');
+                    // 同步刷新数据
+                    await Promise.all([
+                        loadAvailableOrders(),
+                        loadOrders(),
+                        loadOverviewData()
+                    ]);
+                }
+            } catch (err) {
+                showToast('接单发生异常: ' + err.message);
+            } finally {
+                document.getElementById('loadingOverlay').style.display = 'none';
             }
         }
 
@@ -750,17 +889,18 @@
                         <td class="px-6 py-4 text-right">${r.first_service_at ? '<span class="text-green-500 font-bold">✅ 已成单</span>' : '<span class="text-slate-300">⏳ 待转化</span>'}</td>
                     </tr>`).join('') || '<tr><td colspan="3" class="p-8 text-center text-slate-400">暂无招募记录</td></tr>';
 
-                // 2. 获取奖励明细 (关联 05 表)
+                // 2. 获取奖励明细 (从 02_order_master 表查询 commission_referral)
                 const { data: pays } = await supabase
-                    .from('05_referral_details')
-                    .select('*')
-                    .eq('referrer_id', uid)
-                    .order('settle_month', { ascending: false });
+                    .from('02_order_master')
+                    .select('order_id, amount_cny, commission_referral, settlement_month')
+                    .eq('customer_id', uid)
+                    .not('commission_referral', 'is', null)
+                    .order('settlement_month', { ascending: false });
 
                 let tSpend = 0, tPay = 0;
                 pays?.forEach(p => { 
                     tSpend += parseFloat(p.amount_cny || 0); 
-                    tPay += parseFloat(p.payout || 0); 
+                    tPay += parseFloat(p.commission_referral || 0); 
                 });
 
                 document.getElementById('refTotalPayout').textContent = `¥${tPay.toLocaleString('zh-CN', {minimumFractionDigits: 2})}`;
@@ -768,8 +908,8 @@
                 document.getElementById('payoutListBody').innerHTML = pays?.map(p => `
                     <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                         <td class="px-6 py-4 text-xs font-mono text-slate-500">${p.order_id.slice(0, 8)}...</td>
-                        <td class="px-6 py-4 text-xs font-bold text-indigo-600 text-center">${(parseFloat(p.rate)*100).toFixed(1)}%</td>
-                        <td class="px-6 py-4 text-right font-black text-green-600">¥${parseFloat(p.payout).toFixed(2)}</td>
+                        <td class="px-6 py-4 text-xs font-bold text-indigo-600 text-center">推荐提成</td>
+                        <td class="px-6 py-4 text-right font-black text-green-600">¥${parseFloat(p.commission_referral || 0).toFixed(2)}</td>
                     </tr>`).join('') || '<tr><td colspan="3" class="p-8 text-center text-slate-400">暂无奖励发放记录</td></tr>';
 
                 // 3. 计算并更新等级进度条
@@ -852,8 +992,9 @@
 
             const titles = {
                 'overview': '业绩总览',
-                'orders': '订单明细 (含成本)',
+                'orders': '抢单与订单明细 (含成本)',
                 'referral': '发展客户与推荐树',
+                'tasks': '任务通知',
                 'profile': '个人中心与安全设置'
             };
             document.getElementById('page-title').innerText = titles[tabId] || '业务系统';
@@ -911,7 +1052,7 @@
         function copyReferralLink() {
             const code = currentUser?.referral_code || 'BS8A2D';
             const link = `${window.location.origin}/注册.html?ref=${code}`;
-            navigator.clipboard.writeText(link).then(() => showToast('链接已复制到剪贴板'));
+            navigator.clipboard.writeText(link).then(() => showToast('✅ 链接已复制到剪贴板'));
         }
 
         function toggleNotifications() {
@@ -956,7 +1097,7 @@
                 if (error) throw error;
                 await loadCurrentUser();
                 updateUserInfo();
-                showToast('联系方式已更新');
+                showToast('✅ 联系方式已更新');
             } catch (error) {
                 showToast('保存失败：' + error.message);
             }
@@ -995,6 +1136,213 @@
                 toggleNotifications();
             }
         });
+
+        // 【修复】新建订单弹窗相关函数
+        function openNewOrderModal() {
+            document.getElementById('newOrderModal').classList.remove('hidden');
+            loadCustomerList();
+        }
+
+        function closeNewOrderModal() {
+            document.getElementById('newOrderModal').classList.add('hidden');
+        }
+
+        async function loadCustomerList() {
+            const { data: customers, error } = await supabase
+                .from('01_user_master')
+                .select('user_id, real_name, phone')
+                .contains('role', ['客户']);
+            
+            const select = document.getElementById('orderCustomer');
+            if(customers && customers.length > 0) {
+                select.innerHTML = customers.map(c => `<option value="${c.user_id}">${c.real_name} (${c.phone})</option>`).join('');
+            } else {
+                select.innerHTML = '<option value="">暂无客户数据</option>';
+            }
+        }
+
+        async function submitNewOrder() {
+            const btn = document.getElementById('btnSubmitOrder');
+            btn.disabled = true;
+            btn.textContent = '提交中...';
+
+            try {
+                const customerId = document.getElementById('orderCustomer').value;
+                const bizType = document.getElementById('orderBizType').value;
+                const currency = document.getElementById('orderCurrency').value;
+                const amount = parseFloat(document.getElementById('orderAmount').value);
+                const days = parseInt(document.getElementById('orderDays').value) || 1;
+                const desc = document.getElementById('orderDesc').value;
+
+                if(!customerId || !amount || amount <= 0) {
+                    throw new Error('请填写完整的订单信息');
+                }
+
+                // 获取当前汇率
+                const { data: rateData } = await supabase
+                    .from('08_exchange_rate')
+                    .select('exec_rate')
+                    .eq('currency', currency)
+                    .order('captured_at', { ascending: false })
+                    .limit(1)
+                    .single();
+                
+                const rate = rateData ? parseFloat(rateData.exec_rate) : 7.05;
+                const amountCny = currency === 'CNY' ? amount : amount * rate;
+
+                // 【修复】不传入commission字段，让数据库自动计算
+                const { error } = await supabase.from('02_order_master').insert([{
+                    customer_id: customerId,
+                    salesman_id: currentUser.user_id,
+                    biz_type: bizType,
+                    currency: currency,
+                    amount_fc: amount,
+                    exec_rate: rate,
+                    amount_cny: amountCny,
+                    quantity: days,
+                    order_info: desc,
+                    status: '进行中',
+                    // commission_salesman: 不传，让数据库自动计算
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }]);
+
+                if(error) throw error;
+
+                alert('✅ 订单创建成功！财务将后续录入成本。');
+                closeNewOrderModal();
+                await loadOrders();
+            } catch(err) {
+                alert('创建失败: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '确认提交';
+            }
+        }
+
+        // ===================== 任务通知功能 =====================
+        let taskNotifications = [];
+
+        async function loadTasks() {
+            const roles = Array.isArray(currentUser.role) ? currentUser.role : [currentUser.role];
+            roles.push('全部');
+
+            const { data, error } = await supabase
+                .from('06_task_publish')
+                .select('*')
+                .in('target_role', roles)
+                .eq('status', '进行中')
+                .order('created_at', { ascending: false });
+            
+            if (error) {
+                console.warn('加载任务失败:', error.message);
+                taskNotifications = [];
+            } else {
+                taskNotifications = data || [];
+            }
+            updateTaskBadge();
+            renderTasks();
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('task-list-container');
+            if (!container) return;
+            if (taskNotifications.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-slate-400 text-sm">暂无新任务</div>`;
+                return;
+            }
+
+            let html = '';
+            taskNotifications.forEach(task => {
+                const date = new Date(task.created_at).toLocaleDateString();
+                const roleBadge = `<span class="text-[10px] bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded ml-2">To: ${task.target_role}</span>`;
+                html += `
+                    <div class="p-4 hover:bg-slate-50 transition-colors">
+                        <div class="flex justify-between items-start mb-1">
+                            <h4 class="font-bold text-slate-800 text-sm flex items-center">${task.title} ${roleBadge}</h4>
+                            <span class="text-[10px] text-slate-400">${date}</span>
+                        </div>
+                        <p class="text-xs text-slate-600 leading-relaxed">${task.content}</p>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function updateTaskBadge() {
+            const count = taskNotifications.length;
+            const badge = document.getElementById('nav-task-badge');
+            if (count > 0) {
+                if (badge) {
+                    badge.innerText = count;
+                    badge.classList.remove('hidden');
+                }
+            } else {
+                if (badge) badge.classList.add('hidden');
+            }
+        }
     </script>
+
+    <div id="newOrderModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-black text-slate-800 mb-6">录入新订单 (02_order_master)</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">客户选择</label>
+                    <select id="orderCustomer" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold text-slate-700">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">业务类型</label>
+                    <select id="orderBizType" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold text-slate-700">
+                        <option value="medical_guide">🏥 医疗陪同 (Medical Guide)</option>
+                        <option value="sourcing">📦 全球采购 (Sourcing)</option>
+                        <option value="dropshipping">🚚 一件代发 (Dropshipping)</option>
+                        <option value="group_buy">🛒 拼邮团购 (Group Buy)</option>
+                        <option value="tourist_purchase">🛍️ 游客代购 (Tourist Purchase)</option>
+                        <option value="airport_pickup">✈️ 机场接送 (Airport Pickup)</option>
+                        <option value="car_service">🚗 用车服务 (Car Service)</option>
+                        <option value="tour_guide">🗺️ 旅游地陪 (Tour Guide)</option>
+                        <option value="digital_kit">💻 数字化设备 (Digital Kit)</option>
+                    </select>
+                    <p class="text-[10px] text-slate-400 mt-1">Value使用英文，符合V5.0标准</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">币种</label>
+                        <select id="orderCurrency" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold">
+                            <option value="USD">USD - 美元</option>
+                            <option value="EUR">EUR - 欧元</option>
+                            <option value="GBP">GBP - 英镑</option>
+                            <option value="CNY">CNY - 人民币</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">金额</label>
+                        <input type="number" id="orderAmount" step="0.01" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">天数/数量</label>
+                    <input type="number" id="orderDays" value="1" min="1" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold">
+                    <p class="text-[10px] text-slate-400 mt-1">服务类订单填写天数，商品类订单填写数量</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">订单描述</label>
+                    <textarea id="orderDesc" rows="2" placeholder="请描述订单详情..." class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm"></textarea>
+                </div>
+                <div class="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                    <p class="text-[10px] text-indigo-600">
+                        <strong>提示：</strong>佣金将由数据库根据业务类型自动计算（服务类40%，采购类阶梯提成）。成本由财务后续录入。
+                    </p>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeNewOrderModal()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm">取消</button>
+                <button id="btnSubmitOrder" onclick="submitNewOrder()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors">确认提交</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
