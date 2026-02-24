@@ -459,7 +459,7 @@
 
         let currentUser = null;
         let currentService = 'digital_kit';
-        let exchangeRate = 7.05;
+        let currentRate = 7.05;
 
         // 检查登录状态
         function checkAuth() {
@@ -513,6 +513,30 @@
                 localStorage.setItem('baisheng_user', JSON.stringify(currentUser));
             } catch (err) {
                 console.error('加载用户数据失败:', err);
+            }
+        }
+
+        // 加载实时汇率
+        async function loadExchangeRate() {
+            try {
+                const { data, error } = await supabase
+                    .from('08_exchange_rate')
+                    .select('*')
+                    .eq('currency', 'USD')
+                    .order('captured_at', { ascending: false })
+                    .limit(1);
+                
+                if (error) {
+                    console.error('加载汇率失败:', error);
+                    return;
+                }
+                
+                if (data && data.length > 0) {
+                    currentRate = parseFloat(data[0].exec_rate);
+                    console.log('当前汇率已更新:', currentRate);
+                }
+            } catch (err) {
+                console.error('加载汇率出错:', err);
             }
         }
 
@@ -753,53 +777,64 @@
             }
         }
 
-        // 加载推荐数据 - 从05_referral_details表读取
+        // 加载推荐数据 - 查询被推荐人的订单
         async function loadReferralData(userId) {
             try {
                 console.log('加载推荐数据，用户ID:', userId);
 
-                // 从05_referral_details表查询当前用户的推荐记录
+                // 【修复】先查询当前用户推荐的人（referrer_id = userId）
+                const { data: referredUsers, error: userError } = await supabase
+                    .from('01_user_master')
+                    .select('user_id, real_name')
+                    .eq('referrer_id', userId);
+
+                if (userError) {
+                    console.error('查询被推荐人失败:', userError);
+                    document.getElementById('referralList').innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-400">加载失败: ${userError.message}</td></tr>`;
+                    return;
+                }
+
+                console.log('被推荐的人:', referredUsers);
+
+                // 如果没有推荐任何人
+                if (!referredUsers || referredUsers.length === 0) {
+                    document.getElementById('referralCount').innerHTML = '0 <span class="text-sm font-medium text-slate-400">笔</span>';
+                    document.getElementById('referralSpending').textContent = '¥0';
+                    document.getElementById('totalCommission').textContent = '¥0.00';
+                    document.getElementById('totalCommissionSmall').textContent = '¥0';
+                    document.getElementById('referralList').innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">暂无推荐记录，快去邀请好友吧！</td></tr>';
+                    return;
+                }
+
+                // 获取被推荐人的ID列表
+                const referredUserIds = referredUsers.map(u => u.user_id);
+
+                // 查询被推荐人的订单（这些订单的推荐提成归当前用户）
                 const { data: referrals, error } = await supabase
-                    .from('05_referral_details')
-                    .select('id, order_id, amount_cny, rate, payout, settle_month')
-                    .eq('referrer_id', userId)
-                    .order('settle_month', { ascending: false });
+                    .from('02_order_master')
+                    .select('order_id, customer_id, amount_cny, commission_referral, settlement_month')
+                    .in('customer_id', referredUserIds)
+                    .eq('status', '已完成')
+                    .gt('commission_referral', 0)
+                    .order('settlement_month', { ascending: false });
 
                 if (error) {
-                    console.error('查询推荐数据失败:', error);
+                    console.error('查询推荐订单失败:', error);
                     document.getElementById('referralList').innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-400">加载失败: ${error.message}</td></tr>`;
                     return;
                 }
 
-                console.log('推荐数据:', referrals);
+                console.log('被推荐人的订单:', referrals);
 
-                // 获取关联的订单信息（被推荐人）
-                let enrichedReferrals = [];
-                if (referrals && referrals.length > 0) {
-                    const orderIds = referrals.map(r => r.order_id);
-                    const { data: orders } = await supabase
-                        .from('02_order_master')
-                        .select('order_id, customer_id, order_info')
-                        .in('order_id', orderIds);
-
-                    // 获取客户信息
-                    const customerIds = orders?.map(o => o.customer_id) || [];
-                    const { data: customers } = await supabase
-                        .from('01_user_master')
-                        .select('user_id, real_name')
-                        .in('user_id', customerIds);
-
-                    // 合并数据
-                    enrichedReferrals = referrals.map(ref => {
-                        const order = orders?.find(o => o.order_id === ref.order_id);
-                        const customer = customers?.find(c => c.user_id === order?.customer_id);
-                        return {
-                            ...ref,
-                            referred_name: customer?.real_name || '未知用户',
-                            order_info: order?.order_info || '-'
-                        };
-                    });
-                }
+                // 合并数据，显示被推荐人的姓名
+                const enrichedReferrals = referrals?.map(ref => {
+                    const referredUser = referredUsers.find(u => u.user_id === ref.customer_id);
+                    return {
+                        ...ref,
+                        referred_name: referredUser?.real_name || '未知用户',
+                        order_info: '推荐订单提成'
+                    };
+                }) || [];
 
                 // 统计
                 const referralCount = referrals ? referrals.length : 0;
@@ -809,7 +844,7 @@
                 if (referrals && referrals.length > 0) {
                     referrals.forEach(r => {
                         totalSpending += parseFloat(r.amount_cny) || 0;
-                        totalCommission += parseFloat(r.payout) || 0;
+                        totalCommission += parseFloat(r.commission_referral) || 0;
                     });
                 }
 
@@ -828,8 +863,7 @@
 
                 tbody.innerHTML = enrichedReferrals.map(r => {
                     const amount = parseFloat(r.amount_cny) || 0;
-                    const payout = parseFloat(r.payout) || 0;
-                    const rate = parseFloat(r.rate) || 0;
+                    const payout = parseFloat(r.commission_referral) || 0;
                     return `
                         <tr class="border-b border-slate-50">
                             <td class="p-4">
@@ -838,7 +872,7 @@
                             </td>
                             <td class="p-4 text-right">¥${amount.toLocaleString()}</td>
                             <td class="p-4 text-right text-green-600">¥${payout.toLocaleString()}</td>
-                            <td class="p-4 text-right text-xs text-slate-400">${(rate * 100).toFixed(1)}%</td>
+                            <td class="p-4 text-right text-xs text-slate-400">推荐提成</td>
                         </tr>
                     `;
                 }).join('');
@@ -886,9 +920,9 @@
                 }
                 const orderId = generateUUID();
 
-                // 计算人民币金额
-                const rates = { 'USD': 7.05, 'EUR': 7.72, 'CNY': 1 };
-                const execRate = rates[currency] || 7.05;
+                // 计算人民币金额（使用实时汇率）
+                const rates = { 'USD': currentRate, 'EUR': currentRate * 1.095, 'CNY': 1 };
+                const execRate = rates[currency] || currentRate;
                 const amountCny = amount * execRate;
 
                 console.log('提交订单:', { orderId, currentService, currentUser: currentUser?.user_id, currency, amount, desc });
@@ -1108,7 +1142,10 @@
                     document.getElementById('loadingOverlay').style.display = 'none';
                     return;
                 }
-                await loadUserData();
+                await Promise.all([
+                    loadUserData(),
+                    loadExchangeRate()
+                ]);
                 clearTimeout(loadingTimeout);
             } catch (err) {
                 console.error('初始化失败:', err);
