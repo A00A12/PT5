@@ -20,7 +20,6 @@
     </style>
 </head>
 <body class="text-slate-900 h-screen flex overflow-hidden">
-
     <div id="loadingOverlay" class="loading-overlay"><div class="spinner"></div></div>
 
     <aside class="w-64 bg-white border-r border-slate-100 hidden md:flex flex-col justify-between h-full z-30 shadow-sm">
@@ -31,6 +30,9 @@
             <nav class="p-4 space-y-2 mt-4">
                 <button onclick="switchTab('overview')" id="nav-overview" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-orange-50 text-orange-700 font-bold transition-all">
                     <span>📊</span> 运营总览
+                </button>
+                <button onclick="switchTab('exchange')" id="nav-exchange" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
+                    <span>💱</span> 汇率管理
                 </button>
                 <button onclick="switchTab('tasks')" id="nav-tasks" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
                     <span>📋</span> 任务发布与管理
@@ -62,7 +64,6 @@
         <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-8 sticky top-0 z-20">
             <h1 class="text-xl font-extrabold text-slate-800" id="page-title">运营工作台</h1>
             <div class="flex items-center gap-4">
-                <!-- 角色切换下拉框 -->
                 <div class="flex items-center gap-2 bg-orange-50 px-3 py-2 rounded-xl border border-orange-100">
                     <span class="text-xs text-orange-600 font-bold">🎭 切换角色</span>
                     <select id="roleSwitcher" onchange="switchRole(this.value)" class="bg-white text-xs font-bold text-slate-700 border border-orange-200 rounded-lg px-2 py-1 outline-none focus:border-orange-500 cursor-pointer">
@@ -75,14 +76,14 @@
                 </div>
                 <div class="hidden md:flex flex-col items-end px-3 py-1 bg-slate-50 rounded-lg border border-slate-200">
                     <span class="text-[10px] font-bold text-slate-400 uppercase">当前汇率 (执行)</span>
-                    <span id="header-rate" class="text-sm font-black text-slate-800">--.--</span>
+                    <span id="header-rate" class="text-sm font-black text-orange-600">--.--</span>
                 </div>
                 <button onclick="window.location.reload()" class="text-xs font-bold text-slate-400 hover:text-orange-600">刷新数据</button>
             </div>
         </header>
 
         <div class="p-8 max-w-7xl mx-auto space-y-8">
-
+            <!-- 运营总览 -->
             <div id="tab-overview" class="tab-content active space-y-8">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="ops-gradient rounded-3xl p-6 text-white shadow-lg shadow-orange-200 relative overflow-hidden" onclick="switchTab('audits')">
@@ -91,13 +92,11 @@
                         <h3 class="text-3xl font-black mb-4 relative z-10"><span id="stat-pending-users">0</span> <span class="text-base font-medium">人</span></h3>
                         <div class="text-[10px] bg-white/20 px-3 py-1 rounded-full w-fit relative z-10">前往审核 ➔</div>
                     </div>
-                    
                     <div class="glass-card rounded-3xl p-6 shadow-sm hover:-translate-y-1 transition-transform" onclick="switchTab('tasks')">
                         <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">进行中的运营任务</p>
                         <h3 class="text-2xl font-black text-slate-800 mt-1"><span id="stat-active-tasks">0</span> <span class="text-sm font-medium text-slate-400">项</span></h3>
                         <p class="text-xs text-slate-400 mt-2">已发布到对应角色</p>
                     </div>
-
                     <div class="glass-card rounded-3xl p-6 shadow-sm hover:-translate-y-1 transition-transform" onclick="switchTab('users')">
                         <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">总用户数</p>
                         <h3 class="text-2xl font-black text-slate-800 mt-1"><span id="stat-total-users">0</span></h3>
@@ -106,6 +105,46 @@
                 </div>
             </div>
 
+            <!-- 汇率管理 (08_exchange_rate) -->
+            <div id="tab-exchange" class="tab-content space-y-6">
+                <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-slate-50 bg-orange-50/30 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-orange-500"></span> 汇率配置 (08_exchange_rate)
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-1">修改汇率后，新录入的订单将使用新汇率计算</p>
+                        </div>
+                        <button onclick="openRateModal()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-orange-700 transition-all">+ 更新汇率</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-[10px] uppercase text-slate-400 font-bold">
+                                <tr>
+                                    <th class="p-4 pl-6">币种</th>
+                                    <th class="p-4">日期</th>
+                                    <th class="p-4">XTransfer中间价</th>
+                                    <th class="p-4">执行汇率(含1%)</th>
+                                    <th class="p-4">来源</th>
+                                    <th class="p-4 text-right pr-6">更新时间</th>
+                                </tr>
+                            </thead>
+                            <tbody id="exchange-rate-body" class="text-slate-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-orange-50 rounded-2xl p-6 border border-orange-100">
+                    <h4 class="font-bold text-orange-800 mb-2">💡 汇率说明</h4>
+                    <ul class="text-xs text-orange-700 space-y-1">
+                        <li>• 执行汇率 = 中间价 × 0.99 (预留1%缓冲空间)</li>
+                        <li>• 修改汇率后，新创建的订单将自动使用最新汇率</li>
+                        <li>• 已存在的订单保持原汇率不变</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 任务中心 -->
             <div id="tab-tasks" class="tab-content space-y-6">
                 <div class="flex justify-between items-end">
                     <div>
@@ -116,11 +155,10 @@
                         <span>+</span> 发布新任务
                     </button>
                 </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="task-list-container">
-                    </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="task-list-container"></div>
             </div>
 
+            <!-- 审核中心 -->
             <div id="tab-audits" class="tab-content space-y-8">
                 <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                     <div class="p-6 border-b border-slate-50 bg-slate-50/50">
@@ -140,20 +178,9 @@
                         </table>
                     </div>
                 </div>
-
-                <div class="bg-white rounded-3xl border border-dashed border-slate-300 shadow-sm overflow-hidden relative">
-                    <div class="p-6 border-b border-slate-50 flex justify-between items-center opacity-50">
-                        <h3 class="font-bold text-slate-800">🎬 视频资质审核</h3>
-                        <span class="text-xs text-slate-400">06_task_audit</span>
-                    </div>
-                    <div class="p-12 text-center bg-slate-50/50">
-                        <div class="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">🚧</div>
-                        <h3 class="text-lg font-bold text-slate-800">功能开发中</h3>
-                        <p class="text-sm text-slate-500 mt-2">视频审核模块正在升级中，暂时无法操作。</p>
-                    </div>
-                </div>
             </div>
 
+            <!-- 人员管理 -->
             <div id="tab-users" class="tab-content space-y-6">
                 <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                     <div class="p-6 border-b border-slate-50 flex justify-between items-center">
@@ -177,6 +204,7 @@
                 </div>
             </div>
 
+            <!-- 个人中心 -->
             <div id="tab-profile" class="tab-content space-y-6">
                 <div class="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-8">
                     <div id="profile-avatar-large" class="w-24 h-24 rounded-full bg-orange-100 flex items-center justify-center text-4xl font-black text-orange-600 shrink-0">OP</div>
@@ -209,14 +237,12 @@
                                         <input type="text" id="profile-whatsapp" placeholder="+86..." class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-orange-500 outline-none transition-all text-sm font-medium">
                                     </div>
                                 </div>
-
                                 <div class="pt-2">
                                     <button id="btn-save-profile" type="button" onclick="saveProfile()" class="bg-slate-900 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg hover:bg-orange-600 transition-all text-sm">💾 保存联系方式</button>
                                 </div>
                             </form>
                         </div>
                     </div>
-
                     <div class="space-y-6">
                         <div class="bg-red-50/50 rounded-3xl p-8 border border-red-100 shadow-sm">
                             <h3 class="text-lg font-bold text-red-600 mb-2">账号与安全</h3>
@@ -233,10 +259,10 @@
                     </div>
                 </div>
             </div>
-
         </div>
     </main>
 
+    <!-- 任务发布弹窗 -->
     <div id="taskModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center">
         <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg mx-4">
             <h3 class="text-xl font-black text-slate-800 mb-6">发布新任务 (06_task_publish)</h3>
@@ -271,15 +297,45 @@
         </div>
     </div>
 
+    <!-- 汇率更新弹窗 -->
+    <div id="rateModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+            <h3 class="text-xl font-black text-slate-800 mb-6">更新汇率 (08_exchange_rate)</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">币种</label>
+                    <select id="rateCurrency" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold">
+                        <option value="USD">USD - 美元</option>
+                        <option value="EUR">EUR - 欧元</option>
+                        <option value="GBP">GBP - 英镑</option>
+                        <option value="HKD">HKD - 港币</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">中间价 (Market Rate)</label>
+                    <input type="number" step="0.0001" id="rateMid" placeholder="7.2500" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold" onchange="calcExecRate()">
+                    <p class="text-[10px] text-slate-400 mt-1">执行汇率将自动计算: 中间价 × 0.99</p>
+                </div>
+                <div class="p-4 bg-orange-50 rounded-xl border border-orange-100">
+                    <label class="block text-xs font-bold text-orange-600 mb-1">执行汇率 (含1%缓冲)</label>
+                    <input type="number" step="0.0001" id="rateExec" class="w-full bg-white border border-orange-200 rounded-lg px-4 py-2 text-sm font-bold text-orange-700" readonly>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeModal('rateModal')" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm">取消</button>
+                <button onclick="submitRate()" class="flex-1 py-3 bg-orange-600 text-white rounded-xl font-bold text-sm hover:bg-orange-700 transition-colors">确认更新</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 人员分配弹窗 -->
     <div id="assignModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center">
         <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
             <h3 class="text-lg font-black text-slate-800 mb-2">人员分配 / 调岗</h3>
             <p class="text-xs text-slate-500 mb-6" id="assignTargetName">正在调整: ---</p>
-            
             <input type="hidden" id="assignUserId">
             <label class="block text-xs font-bold text-slate-500 mb-1">新推荐人/上级 ID (UUID)</label>
             <input type="text" id="newReferrerId" placeholder="请输入上级的 User ID" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm font-mono mb-6">
-
             <div class="flex gap-3">
                 <button onclick="closeModal('assignModal')" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm">取消</button>
                 <button onclick="confirmAssignment()" class="flex-1 py-3 bg-orange-600 text-white rounded-xl font-bold text-sm">确认调整</button>
@@ -287,11 +343,11 @@
         </div>
     </div>
 
+    <!-- 编辑用户弹窗 -->
     <div id="editUserModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center">
         <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
             <h3 class="text-lg font-black text-slate-800 mb-6">资料代填 (仅限联系方式)</h3>
             <input type="hidden" id="editUserId">
-            
             <div class="space-y-3">
                 <div>
                     <label class="block text-[10px] font-bold text-slate-400 uppercase">Email</label>
@@ -306,7 +362,6 @@
                     <input type="text" id="editWhatsapp" class="w-full border-b border-slate-200 py-1 text-sm outline-none focus:border-orange-500">
                 </div>
             </div>
-
             <div class="flex gap-3 mt-8">
                 <button onclick="closeModal('editUserModal')" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm">取消</button>
                 <button onclick="confirmUserEdit()" class="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm">保存资料</button>
@@ -315,66 +370,71 @@
     </div>
 
     <script>
-        // Supabase Config
         const SUPABASE_URL = 'https://xxouixhnhauvgrrchako.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4b3VpeGhuaGF1dmdycmNoYWtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTk2NjYsImV4cCI6MjA4NTczNTY2Nn0.ph24qP9wXOAvsblwkobH9MhSrDFJ4g5vyGof7aUjjVw';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let globalData = { users: [], tasks: [], exchangeRates: [], currentUser: null };
 
-        let globalData = { users: [], tasks: [], currentUser: null };
-
-        // Init
         window.addEventListener('DOMContentLoaded', async () => {
-            await Promise.all([loadUsers(), loadPublishedTasks(), loadRate()]);
-            loadUserProfile(); // 加载个人中心数据
+            await Promise.all([loadUsers(), loadPublishedTasks(), loadExchangeRates()]);
+            loadUserProfile();
             renderDashboard();
             document.getElementById('loadingOverlay').style.display = 'none';
         });
 
-        // Data Loading
         async function loadUsers() {
             const { data } = await supabase.from('01_user_master').select('*').order('created_at', {ascending: false});
             globalData.users = data || [];
         }
 
         async function loadPublishedTasks() {
-            const { data } = await supabase.from('06_task_publish').select('*').order('created_at', {ascending: false});
-            globalData.tasks = data || [];
+            console.log('正在加载任务列表...');
+            try {
+                // 尝试查询 06_task_publish 表
+                const { data, error } = await supabase
+                    .from('06_task_publish')
+                    .select('*')
+                    .order('created_at', {ascending: false});
+                
+                if (error) {
+                    console.error('加载任务失败:', error);
+                    // 在页面上显示错误
+                    const container = document.getElementById('task-list-container');
+                    if (container) {
+                        container.innerHTML = `<div class="col-span-3 text-center text-red-500 py-10">
+                            <p>加载任务失败: ${error.message}</p>
+                            <p class="text-xs mt-2 text-slate-400">请检查表名是否为 "06_task_publish"（区分大小写）</p>
+                        </div>`;
+                    }
+                    globalData.tasks = [];
+                } else {
+                    console.log('任务加载成功:', data);
+                    globalData.tasks = data || [];
+                }
+            } catch (err) {
+                console.error('加载任务异常:', err);
+                globalData.tasks = [];
+            }
         }
 
-        async function loadRate() {
-            const { data } = await supabase.from('08_exchange_rate').select('*').order('rate_date', {ascending: false}).limit(1);
+        // 加载汇率列表
+        async function loadExchangeRates() {
+            const { data } = await supabase.from('08_exchange_rate').select('*').order('captured_at', {ascending: false}).limit(20);
+            globalData.exchangeRates = data || [];
             if(data && data[0]) {
-                const rate = (data[0].xtransfer_mid * 0.99).toFixed(4);
-                document.getElementById('header-rate').textContent = rate;
+                document.getElementById('header-rate').textContent = parseFloat(data[0].exec_rate).toFixed(4);
             }
         }
 
-        // 个人中心逻辑
         function loadUserProfile() {
-            // 尝试从 localStorage 获取用户，如果没有则模拟一个管理员
             const storedUser = localStorage.getItem('baisheng_user');
-            if (storedUser) {
-                globalData.currentUser = JSON.parse(storedUser);
-            } else {
-                // 如果没有登录信息，为了演示效果，我们使用列表中的第一个“管理员”或“运营”
-                globalData.currentUser = globalData.users.find(u => u.role === '管理员' || u.role === '运营') || {
-                    real_name: 'Emma (Demo)',
-                    user_id: 'OPS-003',
-                    role: '运营',
-                    email: '',
-                    wechat: '',
-                    whatsapp: ''
-                };
-            }
-
+            if (storedUser) globalData.currentUser = JSON.parse(storedUser);
+            else globalData.currentUser = globalData.users.find(u => u.role === '管理员' || u.role === '运营') || { real_name: 'Emma (Demo)', user_id: 'OPS-003', role: '运营', email: '', wechat: '', whatsapp: '' };
             const user = globalData.currentUser;
             const initials = user.real_name ? user.real_name.substring(0, 2).toUpperCase() : 'OP';
-            
             document.getElementById('profile-avatar-large').textContent = initials;
             document.getElementById('profile-name').textContent = user.real_name || '运营人员';
             document.getElementById('profile-user-id').textContent = 'ID: ' + (user.user_id || 'OPS-003');
-            
-            // 填充表单
             document.getElementById('profile-email').value = user.email || '';
             document.getElementById('profile-wechat').value = user.wechat || '';
             document.getElementById('profile-whatsapp').value = user.whatsapp || '';
@@ -382,53 +442,33 @@
 
         async function saveProfile() {
             const btn = document.getElementById('btn-save-profile');
-            const originalText = btn.textContent;
-            btn.textContent = '保存中...';
-            btn.disabled = true;
-
-            const updates = {
-                email: document.getElementById('profile-email').value,
-                wechat: document.getElementById('profile-wechat').value,
-                whatsapp: document.getElementById('profile-whatsapp').value
-            };
-
+            const originalText = btn.textContent; btn.textContent = '保存中...'; btn.disabled = true;
+            const updates = { email: document.getElementById('profile-email').value, wechat: document.getElementById('profile-wechat').value, whatsapp: document.getElementById('profile-whatsapp').value };
             try {
-                // 如果是真实存在的用户ID（UUID格式），才执行更新
                 if (globalData.currentUser && globalData.currentUser.user_id && globalData.currentUser.user_id.length > 10) {
-                    const { error } = await supabase
-                        .from('01_user_master')
-                        .update(updates)
-                        .eq('user_id', globalData.currentUser.user_id);
+                    const { error } = await supabase.from('01_user_master').update(updates).eq('user_id', globalData.currentUser.user_id);
                     if (error) throw error;
-                    
-                    // 更新本地缓存
                     globalData.currentUser = { ...globalData.currentUser, ...updates };
                     localStorage.setItem('baisheng_user', JSON.stringify(globalData.currentUser));
                     alert('✅ 个人资料保存成功！');
-                } else {
-                    alert('⚠️ 演示模式下无法保存到数据库，但前端已更新。');
-                }
-            } catch (err) {
-                alert('保存失败: ' + err.message);
-            } finally {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }
+                } else alert('⚠️ 演示模式下无法保存到数据库，但前端已更新。');
+            } catch (err) { alert('保存失败: ' + err.message); }
+            finally { btn.textContent = originalText; btn.disabled = false; }
         }
 
-        function logout() {
-            if(confirm('确定要退出登录吗？')) {
-                localStorage.removeItem('baisheng_user');
-                window.location.reload();
-            }
+        function logout() { 
+            if(confirm('确定要退出登录吗？')) { 
+                localStorage.removeItem('baisheng_user'); 
+                window.location.href = 'login.html';
+            } 
         }
 
-        // Rendering
         function renderDashboard() {
             renderStats();
             renderTaskList();
             renderAuditList();
             renderUsers();
+            renderExchangeRates();
         }
 
         function renderStats() {
@@ -437,12 +477,30 @@
             document.getElementById('stat-total-users').textContent = globalData.users.length;
         }
 
-        function renderTaskList() {
-            const container = document.getElementById('task-list-container');
-            if(globalData.tasks.length === 0) {
-                container.innerHTML = `<div class="col-span-3 text-center text-slate-400 py-10">暂无发布的任务</div>`;
+        // 渲染汇率列表
+        function renderExchangeRates() {
+            const tbody = document.getElementById('exchange-rate-body');
+            if(!globalData.exchangeRates || globalData.exchangeRates.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 text-xs">暂无汇率数据</td></tr>';
                 return;
             }
+            tbody.innerHTML = globalData.exchangeRates.map(r => {
+                const date = new Date(r.captured_at).toLocaleString('zh-CN');
+                const source = r.is_manual ? '<span class="px-2 py-1 bg-orange-100 text-orange-600 rounded text-[10px] font-bold">手动</span>' : '<span class="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] font-bold">自动</span>';
+                return `<tr class="border-b border-slate-50 hover:bg-slate-50/50">
+                    <td class="p-4 pl-6 font-bold text-slate-700">${r.currency}</td>
+                    <td class="p-4 text-xs text-slate-500">${r.rate_date || '-'}</td>
+                    <td class="p-4 font-mono text-xs">${parseFloat(r.xtransfer_mid || r.exec_rate).toFixed(4)}</td>
+                    <td class="p-4 font-mono text-xs font-bold text-orange-600">${parseFloat(r.exec_rate).toFixed(4)}</td>
+                    <td class="p-4">${source}</td>
+                    <td class="p-4 text-right pr-6 text-xs text-slate-400">${date}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderTaskList() {
+            const container = document.getElementById('task-list-container');
+            if(globalData.tasks.length === 0) { container.innerHTML = `<div class="col-span-3 text-center text-slate-400 py-10">暂无发布的任务</div>`; return; }
             container.innerHTML = globalData.tasks.map(t => `
                 <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm relative group hover:-translate-y-1 transition-transform">
                     <span class="absolute top-4 right-4 px-2 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold rounded">${t.target_role}</span>
@@ -476,7 +534,6 @@
             const list = document.getElementById('users-list-body');
             const term = document.getElementById('search-input').value.toLowerCase();
             const filtered = globalData.users.filter(u => (u.real_name||'').toLowerCase().includes(term));
-            
             list.innerHTML = filtered.map(u => {
                 const referrerName = globalData.users.find(r => r.user_id === u.referrer_id)?.real_name || '-';
                 return `
@@ -485,7 +542,7 @@
                         <div class="font-bold text-slate-800 text-sm">${u.real_name || '未命名'}</div>
                         <div class="text-[10px] text-slate-400">${u.phone || '-'}</div>
                     </td>
-                    <td class="p-4"><span class="bg-orange-50 text-orange-700 px-2 py-1 rounded text-[10px] font-bold">${u.role}</span></td>
+                    <td class="p-4"><span class="bg-orange-50 text-orange-700 px-2 py-1 rounded text-[10px] font-bold">${Array.isArray(u.role) ? u.role.join('/') : u.role}</span></td>
                     <td class="p-4 text-xs font-mono text-slate-500">P:${u.purchase_vip || '无'} / S:${u.service_vip || '无'}</td>
                     <td class="p-4 text-xs text-slate-500">${referrerName}</td>
                     <td class="p-4 text-right pr-6 space-x-2">
@@ -496,66 +553,95 @@
             `}).join('');
         }
 
-        // Actions
         async function submitTask() {
             const title = document.getElementById('taskTitle').value;
             const content = document.getElementById('taskContent').value;
             const role = document.getElementById('taskRole').value;
             const deadline = document.getElementById('taskDeadline').value;
-
             if(!title) return alert('请填写标题');
-
             document.getElementById('loadingOverlay').style.display = 'flex';
-            const { error } = await supabase.from('06_task_publish').insert({
-                title, content, target_role: role, deadline: deadline || null
-            });
             
-            if(error) alert('发布失败: ' + error.message);
-            else {
-                closeModal('taskModal');
-                await loadPublishedTasks();
-                renderDashboard();
+            console.log('正在发布任务:', { title, content, role, deadline });
+            
+            try {
+                const { data, error } = await supabase.from('06_task_publish').insert({
+                    title: title,
+                    content: content,
+                    target_role: role,
+                    deadline: deadline || null,
+                    status: '进行中',
+                    publisher_id: globalData.currentUser?.user_id || null
+                }).select();
+                
+                if(error) {
+                    console.error('发布任务失败:', error);
+                    alert('发布失败: ' + error.message + '\n\n请检查:\n1. 表 06_task_publish 是否存在\n2. 字段名是否正确\n3. RLS 权限设置');
+                } else {
+                    console.log('任务发布成功:', data);
+                    alert('✅ 任务发布成功！');
+                    closeModal('taskModal');
+                    // 清空表单
+                    document.getElementById('taskTitle').value = '';
+                    document.getElementById('taskContent').value = '';
+                    document.getElementById('taskDeadline').value = '';
+                    // 刷新任务列表
+                    await loadPublishedTasks();
+                    renderDashboard();
+                }
+            } catch (err) {
+                console.error('发布任务异常:', err);
+                alert('发布异常: ' + err.message);
             }
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        // 计算执行汇率
+        function calcExecRate() {
+            const mid = parseFloat(document.getElementById('rateMid').value) || 0;
+            const exec = (mid * 0.99).toFixed(4);
+            document.getElementById('rateExec').value = exec;
+        }
+
+        // 提交汇率更新
+        async function submitRate() {
+            const currency = document.getElementById('rateCurrency').value;
+            const mid = parseFloat(document.getElementById('rateMid').value);
+            const exec = parseFloat(document.getElementById('rateExec').value);
+            if(!mid || mid <= 0) return alert('请输入有效的中间价');
+            const now = new Date().toISOString();
+            const today = now.split('T')[0];
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            const { error } = await supabase.from('08_exchange_rate').insert({
+                rate_date: today,
+                captured_at: now,
+                currency: currency,
+                xtransfer_mid: mid,
+                exec_rate: exec,
+                is_manual: true
+            });
+            if(error) alert('更新失败: ' + error.message);
+            else { alert('✅ 汇率已更新！新订单将使用新汇率。'); closeModal('rateModal'); await loadExchangeRates(); renderDashboard(); }
             document.getElementById('loadingOverlay').style.display = 'none';
         }
 
         async function confirmAssignment() {
             const uid = document.getElementById('assignUserId').value;
             const refId = document.getElementById('newReferrerId').value;
-            
             if(!refId) return alert('请输入推荐人ID');
-            
             document.getElementById('loadingOverlay').style.display = 'flex';
             const { error } = await supabase.from('01_user_master').update({ referrer_id: refId }).eq('user_id', uid);
-            
             if(error) alert('分配失败: ' + error.message);
-            else {
-                alert('分配成功');
-                closeModal('assignModal');
-                await loadUsers();
-                renderDashboard();
-            }
+            else { alert('分配成功'); closeModal('assignModal'); await loadUsers(); renderDashboard(); }
             document.getElementById('loadingOverlay').style.display = 'none';
         }
 
         async function confirmUserEdit() {
             const uid = document.getElementById('editUserId').value;
-            const updates = {
-                email: document.getElementById('editEmail').value || null,
-                wechat: document.getElementById('editWechat').value || null,
-                whatsapp: document.getElementById('editWhatsapp').value || null
-            };
-
+            const updates = { email: document.getElementById('editEmail').value || null, wechat: document.getElementById('editWechat').value || null, whatsapp: document.getElementById('editWhatsapp').value || null };
             document.getElementById('loadingOverlay').style.display = 'flex';
             const { error } = await supabase.from('01_user_master').update(updates).eq('user_id', uid);
-            
             if(error) alert('保存失败: ' + error.message);
-            else {
-                alert('资料更新成功');
-                closeModal('editUserModal');
-                await loadUsers();
-                renderDashboard();
-            }
+            else { alert('资料更新成功'); closeModal('editUserModal'); await loadUsers(); renderDashboard(); }
             document.getElementById('loadingOverlay').style.display = 'none';
         }
 
@@ -563,31 +649,23 @@
             if(!confirm(`确定标记该用户为 ${status} 吗？`)) return;
             document.getElementById('loadingOverlay').style.display = 'flex';
             await supabase.from('01_user_master').update({ status }).eq('user_id', uid);
-            await loadUsers();
-            renderDashboard();
+            await loadUsers(); renderDashboard();
             document.getElementById('loadingOverlay').style.display = 'none';
         }
 
-        // UI Helpers
         function switchTab(id) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-' + id).classList.add('active');
-            document.querySelectorAll('.nav-item').forEach(el => {
-                el.classList.remove('bg-orange-50', 'text-orange-700', 'font-bold');
-                el.classList.add('text-slate-500');
-            });
+            document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('bg-orange-50', 'text-orange-700', 'font-bold'); el.classList.add('text-slate-500'); });
             document.getElementById('nav-' + id).classList.add('bg-orange-50', 'text-orange-700', 'font-bold');
+            const titles = { 'overview': '运营工作台', 'exchange': '汇率管理', 'tasks': '任务中心', 'audits': '审核中心', 'users': '人员管理', 'profile': '个人中心' };
+            document.getElementById('page-title').innerText = titles[id] || '运营工作台';
         }
 
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-        
-        function openAssignModal(uid, name) {
-            document.getElementById('assignUserId').value = uid;
-            document.getElementById('assignTargetName').textContent = '正在调整: ' + name;
-            openModal('assignModal');
-        }
-
+        function openRateModal() { document.getElementById('rateMid').value = ''; document.getElementById('rateExec').value = ''; openModal('rateModal'); }
+        function openAssignModal(uid, name) { document.getElementById('assignUserId').value = uid; document.getElementById('assignTargetName').textContent = '正在调整: ' + name; openModal('assignModal'); }
         function openEditUserModal(uid) {
             const user = globalData.users.find(u => u.user_id === uid);
             document.getElementById('editUserId').value = uid;
@@ -597,69 +675,34 @@
             openModal('editUserModal');
         }
 
-        // ===================== 角色切换 =====================
-        const rolePages = {
-            '管理员': 'admin.html',
-            '运营': 'operations.html',
-            '财务': 'finance.html',
-            '业务经理': 'manager.html',
-            '业务员': 'salesperson.html'
-        };
-
+        const rolePages = { '管理员': 'admin.html', '运营': 'operations.html', '财务': 'finance.html', '业务经理': 'manager.html', '业务员': 'salesperson.html' };
         function switchRole(newRole) {
             const user = globalData.currentUser;
-            if (!user) {
-                alert('请先登录');
-                return;
-            }
-
+            if (!user) { alert('请先登录'); return; }
             const userRoles = user.role || [];
             const rolesArray = Array.isArray(userRoles) ? userRoles : userRoles.split(',').map(r => r.trim());
-
-            if (!rolesArray.includes(newRole)) {
-                alert('❌ 您没有该角色的权限');
-                document.getElementById('roleSwitcher').value = '运营';
-                return;
-            }
-
+            if (!rolesArray.includes(newRole)) { alert('❌ 您没有该角色的权限'); document.getElementById('roleSwitcher').value = '运营'; return; }
             if (newRole === '运营') return;
-
             const targetPage = rolePages[newRole];
-            if (targetPage) {
-                alert(`🔄 正在切换到 ${newRole}...`);
-                setTimeout(() => {
-                    window.location.href = targetPage;
-                }, 300);
-            }
+            if (targetPage) { alert(`🔄 正在切换到 ${newRole}...`); setTimeout(() => { window.location.href = targetPage; }, 300); }
         }
 
         function initRoleSwitcher() {
             const roleSwitcher = document.getElementById('roleSwitcher');
+            if (!roleSwitcher) return;
             const user = globalData.currentUser;
-            if (!roleSwitcher || !user) return;
-            
+            if (!user) { roleSwitcher.style.display = 'block'; return; }
             const userRoles = user.role || [];
             const rolesArray = Array.isArray(userRoles) ? userRoles : userRoles.split(',').map(r => r.trim());
-            
             const options = roleSwitcher.querySelectorAll('option');
             options.forEach(option => {
                 const roleValue = option.value;
-                // 保存原始文本（去除可能已添加的无权限标记）
                 const originalText = option.textContent.replace(/ \(无权限\)$/, '');
-                if (!rolesArray.includes(roleValue)) {
-                    option.disabled = true;
-                    option.textContent = originalText + ' (无权限)';
-                    option.classList.add('text-slate-400');
-                } else {
-                    option.disabled = false;
-                    option.textContent = originalText;
-                    option.classList.remove('text-slate-400');
-                }
+                if (!rolesArray.includes(roleValue)) { option.disabled = true; option.textContent = originalText + ' (无权限)'; option.classList.add('text-slate-400'); }
+                else { option.disabled = false; option.textContent = originalText; option.classList.remove('text-slate-400'); }
             });
-            
             roleSwitcher.value = '运营';
         }
-
         window.addEventListener('load', initRoleSwitcher);
     </script>
 </body>
