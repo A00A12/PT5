@@ -356,7 +356,7 @@
                 const pwd = document.getElementById('reg-pwd').value;
                 const idCard = document.getElementById('reg-idcard').value.trim();
                 const passport = document.getElementById('reg-passport').value.trim();
-                const referral = document.getElementById('reg-referral').value.trim();
+                const referralCode = document.getElementById('reg-referral').value.trim();
                 
                 // 角色处理
                 const userType = document.querySelector('input[name="userType"]:checked').value;
@@ -373,13 +373,28 @@
                     throw new Error('该手机号已被注册');
                 }
 
-                // 3. 生成推荐码 (修正：BS + 4位 = 总共6位)
-                // 之前错误写法: .substring(2, 8) => 6 chars + 'BS' => 8 chars (太长)
-                // 修正后: .substring(2, 6) => 4 chars + 'BS' => 6 chars (符合数据库)
+                // 3. 生成推荐码
                 const newReferralCode = 'BS' + Math.random().toString(36).substring(2, 6).toUpperCase();
 
-                // 4. 插入数据库
-                const { error } = await supabase.from('01_user_master').insert([{
+                // 4. 【修复】查询推荐人信息 - 将邀请码转换为user_id
+                let referrerId = null;
+                let referrerName = '';
+                if(referralCode) {
+                    const { data: referrer, error: referrerError } = await supabase
+                        .from('01_user_master')
+                        .select('user_id, real_name')
+                        .eq('referral_code', referralCode)
+                        .single();
+                    
+                    if(referrerError || !referrer) {
+                        throw new Error('邀请码不存在，请检查输入');
+                    }
+                    referrerId = referrer.user_id;
+                    referrerName = referrer.real_name;
+                }
+
+                // 5. 【修复】插入用户数据 - 包含referrer_id
+                const { data: newUser, error: insertError } = await supabase.from('01_user_master').insert([{
                     phone: phone,
                     real_name: name,
                     password: pwd,
@@ -387,16 +402,20 @@
                     id_card: idCard || null,
                     passport: passport || null,
                     referral_code: newReferralCode,
+                    referrer_id: referrerId,  // 【修复】添加推荐人ID
                     status: '已通过', 
-                    // 补充默认字段防止其他错误
                     purchase_vip: '试用期',
                     service_vip: '新客试用期',
                     created_at: new Date()
-                }]);
+                }]).select();
 
-                if(error) throw error;
+                if(insertError) throw insertError;
 
-                alert(`注册成功！\n您的推荐码是: ${newReferralCode}\n请使用手机号登录。`);
+                const newUserId = newUser[0].user_id;
+
+                // 6. 推荐树关系由数据库触发器自动维护，无需手动插入
+
+                alert(`注册成功！\n您的推荐码是: ${newReferralCode}${referrerName ? '\n推荐人: ' + referrerName : ''}\n请使用手机号登录。`);
                 switchPanel('login');
 
             } catch (err) {
