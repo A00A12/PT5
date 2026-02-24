@@ -397,17 +397,22 @@
             const roles = Array.isArray(currentUser.role) ? currentUser.role : [currentUser.role];
             roles.push('全部');
 
+            // 从 06_task_publish 表加载任务
             const { data, error } = await supabase
                 .from('06_task_publish')
                 .select('*')
+                .in('target_role', roles)
                 .eq('status', '进行中')
                 .order('created_at', { ascending: false });
-
-            if (!error && data) {
-                notifications = data.filter(task => roles.includes(task.target_role) || task.target_role === '全部');
-                updateNotificationBadge();
-                renderTasks();
+            
+            if (error) {
+                console.warn('加载任务失败:', error.message);
+                notifications = [];
+            } else {
+                notifications = data || [];
             }
+            updateNotificationBadge();
+            renderTasks();
         }
 
         // ===================== 3. 渲染层 =====================
@@ -460,6 +465,16 @@
                 const profit = parseFloat(order.gross_profit || 0);
                 const margin = amount > 0 ? ((profit / amount) * 100).toFixed(1) : 0;
 
+                // 【修复】添加状态样式和确认完成按钮
+                const statusColors = {
+                    '进行中': 'bg-blue-50 text-blue-600',
+                    '已完成': 'bg-green-50 text-green-600',
+                    '已取消': 'bg-slate-100 text-slate-500',
+                    '已结算': 'bg-purple-50 text-purple-600'
+                };
+                const statusClass = statusColors[order.status] || 'bg-slate-100 text-slate-500';
+                const canComplete = order.status === '进行中';
+                
                 html += `
                     <tr class="border-b border-slate-50 hover:bg-slate-50/50">
                         <td class="p-4 pl-8">
@@ -471,7 +486,10 @@
                         <td class="p-4 text-right text-green-600 font-black">¥${profit.toLocaleString()}</td>
                         <td class="p-4 text-right text-xs font-bold">${margin}%</td>
                         <td class="p-4 pr-8 text-center">
-                            <span class="px-2 py-1 bg-slate-100 text-slate-500 rounded text-[10px]">${order.status || '进行中'}</span>
+                            <div class="flex flex-col items-center gap-2">
+                                <span class="px-2 py-1 ${statusClass} rounded text-[10px] font-bold">${order.status || '进行中'}</span>
+                                ${canComplete ? `<button onclick="completeOrder('${order.order_id}')" class="px-2 py-1 bg-teal-600 text-white rounded text-[10px] font-bold hover:bg-teal-700 transition-all">✅ 确认完成</button>` : ''}
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -608,6 +626,27 @@
             }
         }
 
+        // 【修复】确认完成订单 - 触发自动分账
+        async function completeOrder(orderId) {
+            if(!confirm('确认将此订单标记为"已完成"？\n\n这将触发自动分账逻辑：\n• 业务员佣金将自动计算并发放\n• 推荐人分红将自动记录\n• 订单状态将锁定')) return;
+            
+            try {
+                const { error } = await supabase
+                    .from('02_order_master')
+                    .update({ status: '已完成', updated_at: new Date().toISOString() })
+                    .eq('order_id', orderId);
+                
+                if(error) throw error;
+                
+                alert('✅ 订单已完成！自动分账已触发。');
+                await loadTeamOrders();
+                renderCostAnalysis();
+                renderOverview();
+            } catch(err) {
+                alert('操作失败: ' + err.message);
+            }
+        }
+
         // ===================== 角色切换 =====================
         const rolePages = {
             '管理员': 'admin.html',
@@ -645,7 +684,13 @@
 
         function initRoleSwitcher() {
             const roleSwitcher = document.getElementById('roleSwitcher');
-            if (!roleSwitcher || !currentUser) return;
+            if (!roleSwitcher) return;
+            
+            // 如果没有用户数据，显示所有选项（默认状态）
+            if (!currentUser) {
+                roleSwitcher.style.display = 'block';
+                return;
+            }
             
             const userRoles = currentUser.role || [];
             const rolesArray = Array.isArray(userRoles) ? userRoles : userRoles.split(',').map(r => r.trim());
