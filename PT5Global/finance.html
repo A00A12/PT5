@@ -17,17 +17,12 @@
         .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; z-index: 9999; }
         .spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top-color: #10b981; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        
-        .cost-input { 
-            width: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 8px; 
-            font-size: 12px; text-align: right; font-family: 'Menlo', monospace; outline: none; transition: all 0.2s; 
-        }
+        .cost-input { width: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 8px; font-size: 12px; text-align: right; font-family: 'Menlo', monospace; outline: none; transition: all 0.2s; }
         .cost-input:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); }
         .cost-input-readonly { background: #f8fafc; border-color: transparent; color: #64748b; cursor: default; }
     </style>
 </head>
 <body class="text-slate-900 h-screen flex overflow-hidden">
-
     <div id="loadingOverlay" class="loading-overlay"><div class="spinner"></div></div>
 
     <aside class="w-64 bg-white border-r border-slate-100 hidden md:flex flex-col justify-between h-full z-30 shadow-sm">
@@ -38,6 +33,9 @@
             <nav class="p-4 space-y-2 mt-4">
                 <button onclick="switchTab('overview')" id="nav-overview" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 text-emerald-700 font-bold transition-all">
                     <span>📊</span> 财务总览
+                </button>
+                <button onclick="switchTab('financelog')" id="nav-financelog" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
+                    <span>📜</span> 资金流水
                 </button>
                 <button onclick="switchTab('costs')" id="nav-costs" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
                     <span>💰</span> 成本与结算
@@ -52,6 +50,10 @@
                     <span>📈</span> 汇率管理
                 </button>
                 <div class="pt-4 mt-4 border-t border-slate-100"></div>
+                <button onclick="switchTab('tasks')" id="nav-tasks" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
+                    <span>🔔</span> 任务通知
+                    <span id="nav-task-badge" class="hidden ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">0</span>
+                </button>
                 <button onclick="switchTab('profile')" id="nav-profile" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium transition-all">
                     <span>👤</span> 个人中心
                 </button>
@@ -72,7 +74,6 @@
         <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-8 sticky top-0 z-20">
             <h1 class="text-xl font-extrabold text-slate-800" id="page-title">财务总览看板</h1>
             <div class="flex items-center gap-4">
-                <!-- 角色切换下拉框 -->
                 <div class="flex items-center gap-2 bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-100">
                     <span class="text-xs text-emerald-600 font-bold">🎭 切换角色</span>
                     <select id="roleSwitcher" onchange="switchRole(this.value)" class="bg-white text-xs font-bold text-slate-700 border border-emerald-200 rounded-lg px-2 py-1 outline-none focus:border-emerald-500 cursor-pointer">
@@ -87,27 +88,36 @@
                     <span class="text-[10px] font-bold text-slate-400 uppercase">执行汇率 (USD/CNY)</span>
                     <span id="header-rate" class="text-sm font-black text-emerald-600">--.--</span>
                 </div>
+                <div class="relative">
+                    <button onclick="switchTab('tasks')" class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-xl hover:bg-slate-100 relative transition-all cursor-pointer">
+                        🔔<span id="header-unread-dot" class="hidden absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>
+                    </button>
+                </div>
                 <button onclick="window.location.reload()" class="text-xs font-bold text-slate-400 hover:text-emerald-600">刷新数据</button>
             </div>
         </header>
 
         <div class="p-8 max-w-7xl mx-auto space-y-8">
-
+            <!-- 财务总览 -->
             <div id="tab-overview" class="tab-content active space-y-8">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div class="finance-gradient rounded-3xl p-6 text-white shadow-lg shadow-emerald-200 relative overflow-hidden" onclick="switchTab('withdrawals')">
                         <div class="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
                         <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-100 mb-1 relative z-10">待发放佣金 (04_commission)</p>
                         <h3 class="text-3xl font-black mb-4 relative z-10">¥<span id="stat-pending-payout">0.00</span></h3>
                         <div class="text-[10px] bg-white/20 px-3 py-1 rounded-full w-fit relative z-10">前往发放 ➔</div>
                     </div>
-                    
+                    <div class="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-3xl p-6 text-white shadow-lg shadow-purple-200 relative overflow-hidden" onclick="switchTab('withdrawals')">
+                        <div class="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-purple-100 mb-1 relative z-10">待发放推荐奖励 (05_referral)</p>
+                        <h3 class="text-3xl font-black mb-4 relative z-10">¥<span id="stat-pending-referral">0.00</span></h3>
+                        <div class="text-[10px] bg-white/20 px-3 py-1 rounded-full w-fit relative z-10">前往发放 ➔</div>
+                    </div>
                     <div class="glass-card rounded-3xl p-6 shadow-sm hover:-translate-y-1 transition-transform" onclick="switchTab('costs')">
                         <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">待录入成本订单 (02_order)</p>
                         <h3 class="text-2xl font-black text-slate-800 mt-1"><span id="stat-pending-cost">0</span> <span class="text-sm font-medium text-slate-400">单</span></h3>
                         <p class="text-xs text-red-500 font-bold mt-2">5项成本全空/0</p>
                     </div>
-
                     <div class="glass-card rounded-3xl p-6 shadow-sm hover:-translate-y-1 transition-transform" onclick="switchTab('compensations')">
                         <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">租赁归还待审 (03_digital)</p>
                         <h3 class="text-2xl font-black text-slate-800 mt-1"><span id="stat-pending-return">0</span> <span class="text-sm font-medium text-slate-400">设备</span></h3>
@@ -116,12 +126,44 @@
                 </div>
             </div>
 
+            <!-- 资金流水 (11_finance_log) -->
+            <div id="tab-financelog" class="tab-content space-y-6">
+                <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-slate-50 bg-emerald-50/30 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 资金流水记录 (11_finance_log)
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-1">展示佣金发放、推荐分红等所有资金变动记录</p>
+                        </div>
+                        <span class="px-2 py-1 bg-emerald-100 text-emerald-600 rounded text-xs font-bold" id="badge-finance-log">0 条</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-[10px] uppercase text-slate-400 font-bold">
+                                <tr>
+                                    <th class="p-4 pl-6">流水号</th>
+                                    <th class="p-4">时间</th>
+                                    <th class="p-4">类型</th>
+                                    <th class="p-4">用户</th>
+                                    <th class="p-4">关联订单</th>
+                                    <th class="p-4 text-right">金额</th>
+                                    <th class="p-4 text-center">状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="finance-log-body" class="text-slate-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 成本与结算 -->
             <div id="tab-costs" class="tab-content space-y-8">
                 <div class="bg-white rounded-3xl border border-red-100 shadow-sm overflow-hidden">
                     <div class="p-6 border-b border-red-50 bg-red-50/30 flex justify-between items-center">
                         <div>
                             <h3 class="font-bold text-slate-800 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> 待录入成本 (所有项为0)</h3>
-                            <p class="text-xs text-slate-400 mt-1">请录入成本并保存。保存后订单将移至下方"待结算"列表。</p>
+                            <p class="text-xs text-slate-400 mt-1">包含"进行中"订单和<span class="text-amber-600 font-bold">已完成但成本为0的订单（补录）</span>。保存后订单将移至下方"待结算"列表。</p>
                         </div>
                         <span class="px-2 py-1 bg-red-100 text-red-600 rounded text-xs font-bold" id="badge-pending-entry">0 单</span>
                     </div>
@@ -172,10 +214,11 @@
                 </div>
             </div>
 
+            <!-- 赔偿审核 -->
             <div id="tab-compensations" class="tab-content space-y-6">
                 <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                     <div class="p-6 border-b border-slate-50 flex justify-between items-center">
-                        <h3 class="font-bold text-slate-800">设备归还与赔偿核算 (03_digital_kit)</h3>
+                        <h3 class="font-bold text-slate-800">设备归还与赔偿核算 (03_digital_kit_orders)</h3>
                         <p class="text-xs text-slate-400">仅显示未归还(is_returned=false)的设备</p>
                     </div>
                     <div class="overflow-x-auto">
@@ -184,7 +227,8 @@
                                 <tr>
                                     <th class="p-4 pl-6">订单号</th>
                                     <th class="p-4">租赁模式</th>
-                                    <th class="p-4 w-48">损坏程度 (下拉选择)</th> <th class="p-4">已收押金</th>
+                                    <th class="p-4 w-48">损坏程度 (下拉选择)</th>
+                                    <th class="p-4">已收押金</th>
                                     <th class="p-4 text-right pr-6">操作</th>
                                 </tr>
                             </thead>
@@ -194,10 +238,13 @@
                 </div>
             </div>
 
+            <!-- 资金发放 -->
             <div id="tab-withdrawals" class="tab-content space-y-6">
+                <!-- 佣金发放 -->
                 <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                     <div class="p-6 border-b border-slate-50 flex justify-between items-center">
                         <h3 class="font-bold text-slate-800">佣金发放 (04_commission_summary)</h3>
+                        <span class="px-2 py-1 bg-blue-100 text-blue-600 rounded text-xs font-bold" id="badge-commission">0 条</span>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-sm">
@@ -214,8 +261,32 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- 推荐奖励发放 -->
+                <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-slate-50 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800">推荐奖励发放 (05_referral_details)</h3>
+                        <span class="px-2 py-1 bg-purple-100 text-purple-600 rounded text-xs font-bold" id="badge-referral">0 条</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-[10px] uppercase text-slate-400 font-bold">
+                                <tr>
+                                    <th class="p-4 pl-6">结算月份</th>
+                                    <th class="p-4">推荐人</th>
+                                    <th class="p-4">推荐订单数</th>
+                                    <th class="p-4">奖励总额</th>
+                                    <th class="p-4">当前状态</th>
+                                    <th class="p-4 text-right pr-6">财务确认</th>
+                                </tr>
+                            </thead>
+                            <tbody id="referral-payout-body" class="text-slate-700"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
+            <!-- 汇率管理 -->
             <div id="tab-exchange" class="tab-content space-y-6">
                 <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm max-w-lg mx-auto">
                     <h3 class="font-bold text-slate-800 mb-6">汇率干预 (08_exchange_rate)</h3>
@@ -240,6 +311,19 @@
                 </div>
             </div>
 
+            <!-- 个人中心 -->
+            <!-- 任务通知 -->
+            <div id="tab-tasks" class="tab-content space-y-6">
+                <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                     <div class="p-6 border-b border-slate-50 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800">任务通知 (Task Publish)</h3>
+                        <button onclick="loadTasks()" class="text-xs font-bold text-teal-600 hover:underline">刷新列表</button>
+                    </div>
+                    <div id="task-list-container" class="divide-y divide-slate-50">
+                        </div>
+                </div>
+            </div>
+
             <div id="tab-profile" class="tab-content space-y-6">
                 <div class="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-8">
                     <div id="profile-avatar" class="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center text-4xl font-black text-emerald-600 shrink-0">FI</div>
@@ -259,7 +343,6 @@
                         <div class="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
                             <h3 class="font-bold text-slate-800 mb-6 text-lg">联系方式</h3>
                             <p class="text-xs text-slate-500 mb-6">此信息将用于接收系统的异常账单告警、提现申请通知，以及对内联络沟通。</p>
-                            
                             <form id="profile-form" class="space-y-5">
                                 <div>
                                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">📧 邮箱 (Email)</label>
@@ -275,19 +358,16 @@
                                         <input type="text" id="profile-whatsapp" placeholder="+86..." class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 outline-none transition-all text-sm font-medium">
                                     </div>
                                 </div>
-
                                 <div class="pt-4">
                                     <button id="btn-save-settings" type="button" onclick="saveFinanceSettings()" class="bg-slate-900 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg hover:bg-emerald-600 transition-all text-sm">💾 保存联系方式</button>
                                 </div>
                             </form>
                         </div>
                     </div>
-
                     <div class="space-y-6">
                         <div class="bg-red-50/50 rounded-3xl p-8 border border-red-100 shadow-sm">
                             <h3 class="text-lg font-bold text-red-600 mb-2">资金安全与退出</h3>
                             <p class="text-xs text-red-400 mb-6 leading-relaxed">离开电脑前请务必安全退出，防止财务数据泄露。</p>
-                            
                             <div class="flex flex-col gap-3">
                                 <button onclick="logout()" class="w-full py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-50 hover:text-emerald-600 transition-all shadow-sm flex items-center justify-center gap-2 group">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 group-hover:stroke-emerald-600 transition-colors">
@@ -300,7 +380,6 @@
                     </div>
                 </div>
             </div>
-
         </div>
     </main>
 
@@ -309,31 +388,20 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4b3VpeGhuaGF1dmdycmNoYWtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTk2NjYsImV4cCI6MjA4NTczNTY2Nn0.ph24qP9wXOAvsblwkobH9MhSrDFJ4g5vyGof7aUjjVw';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // 赔偿标准常量
-        const DAMAGE_COSTS = {
-            '正常磨损': 0,
-            '屏幕损坏': 200,
-            '外壳严重损坏': 300,
-            '功能损坏': 400,
-            '手机丢失': 700
-        };
-
-        let globalData = { ordersEntry: [], ordersSettle: [], commissions: [], digitalOrders: [], rate: null, currentUser: null };
+        const DAMAGE_COSTS = { '正常磨损': 0, '屏幕损坏': 200, '外壳严重损坏': 300, '功能损坏': 400, '手机丢失': 700 };
+        let globalData = { ordersEntry: [], ordersSettle: [], commissions: [], referrals: [], digitalOrders: [], financeLogs: [], rate: null, currentUser: null };
 
         window.addEventListener('DOMContentLoaded', async () => {
             loadUserProfile(); 
             await loadAllData();
+            await loadTasks();
             document.getElementById('loadingOverlay').style.display = 'none';
         });
 
-        // ===================== 个人中心逻辑 =====================
         function loadUserProfile() {
             const storedUser = localStorage.getItem('baisheng_user');
-            if (storedUser) {
-                globalData.currentUser = JSON.parse(storedUser);
-            } else {
-                globalData.currentUser = { real_name: 'CFO Office', user_id: 'FIN-001', role: '财务' };
-            }
+            if (storedUser) globalData.currentUser = JSON.parse(storedUser);
+            else globalData.currentUser = { real_name: 'CFO Office', user_id: 'FIN-001', role: '财务' };
             updateUserInfo(globalData.currentUser);
         }
 
@@ -341,11 +409,9 @@
             document.getElementById('user-avatar').textContent = 'FI';
             document.getElementById('user-name').textContent = user.real_name || 'CFO Office';
             document.getElementById('user-id').textContent = 'ID: ' + (user.user_id || 'FIN-001');
-            
             document.getElementById('profile-avatar').textContent = 'FI';
             document.getElementById('profile-name').textContent = user.real_name || 'CFO Office';
             document.getElementById('profile-user-id').textContent = '工号：' + (user.user_id || 'FIN-001');
-            
             document.getElementById('profile-email').value = user.email || '';
             document.getElementById('profile-wechat').value = user.wechat || '';
             document.getElementById('profile-whatsapp').value = user.whatsapp || '';
@@ -353,61 +419,124 @@
 
         async function saveFinanceSettings() {
             const btn = document.getElementById('btn-save-settings');
-            const origText = btn.innerHTML;
-            btn.innerHTML = '保存中...';
-            btn.disabled = true;
-
+            const origText = btn.innerHTML; btn.innerHTML = '保存中...'; btn.disabled = true;
             try {
-                const updates = {
-                    email: document.getElementById('profile-email').value,
-                    wechat: document.getElementById('profile-wechat').value,
-                    whatsapp: document.getElementById('profile-whatsapp').value
-                };
-                
+                const updates = { email: document.getElementById('profile-email').value, wechat: document.getElementById('profile-wechat').value, whatsapp: document.getElementById('profile-whatsapp').value };
                 if(globalData.currentUser && globalData.currentUser.user_id && globalData.currentUser.user_id.length > 10) {
                     const { error } = await supabase.from('01_user_master').update(updates).eq('user_id', globalData.currentUser.user_id);
                     if (error) throw error;
                     globalData.currentUser = { ...globalData.currentUser, ...updates };
                     localStorage.setItem('baisheng_user', JSON.stringify(globalData.currentUser));
                     alert('✅ 联系方式已更新！');
-                } else {
-                    alert('⚠️ 演示模式已更新前端缓存。');
-                }
-            } catch (error) {
-                alert('保存失败：' + error.message);
-            } finally {
-                btn.innerHTML = origText;
-                btn.disabled = false;
-            }
+                } else alert('⚠️ 演示模式已更新前端缓存。');
+            } catch (error) { alert('保存失败：' + error.message); }
+            finally { btn.innerHTML = origText; btn.disabled = false; }
         }
 
-        // ===================== 数据加载 =====================
         async function loadAllData() {
-            // 1. 汇率
-            const { data: rates } = await supabase.from('08_exchange_rate').select('*').order('captured_at', {ascending: false}).limit(1);
-            if(rates && rates[0]) {
-                globalData.rate = rates[0];
-                document.getElementById('header-rate').textContent = parseFloat(rates[0].exec_rate).toFixed(4);
-                document.getElementById('rate-mid').textContent = rates[0].xtransfer_mid;
-                document.getElementById('rate-exec').textContent = parseFloat(rates[0].exec_rate).toFixed(4);
+            try {
+                const { data: rates } = await supabase.from('08_exchange_rate').select('*').order('captured_at', {ascending: false}).limit(1);
+                if(rates && rates[0]) {
+                    globalData.rate = rates[0];
+                    document.getElementById('header-rate').textContent = parseFloat(rates[0].exec_rate).toFixed(4);
+                    document.getElementById('rate-mid').textContent = rates[0].xtransfer_mid;
+                    document.getElementById('rate-exec').textContent = parseFloat(rates[0].exec_rate).toFixed(4);
+                }
+            } catch (e) {
+                console.warn('汇率查询失败:', e);
             }
 
-            // 2. 成本录入
             try {
-                const { data: orders } = await supabase.from('02_order_master').select('*').eq('status', '进行中').order('updated_at', { ascending: false });
-                if(orders) {
-                    globalData.ordersEntry = orders.filter(o => isZero(o.cost_product) && isZero(o.cost_logistics) && isZero(o.cost_tax_pack) && isZero(o.cost_other) && isZero(o.total_cost));
-                    globalData.ordersSettle = orders.filter(o => !isZero(o.total_cost) || !isZero(o.cost_product) || !isZero(o.cost_logistics) || !isZero(o.cost_tax_pack) || !isZero(o.cost_other));
-                }
+                // 查询进行中的订单（正常流程）
+                const { data: ordersPending } = await supabase.from('02_order_master').select('*').eq('status', '进行中').order('updated_at', { ascending: false });
+                // 查询已完成但成本为0的订单（需要补录成本）
+                const { data: ordersCompletedNoCost } = await supabase.from('02_order_master').select('*')
+                    .eq('status', '已完成')
+                    .eq('cost_product', 0)
+                    .eq('cost_logistics', 0)
+                    .eq('cost_tax_pack', 0)
+                    .eq('cost_other', 0)
+                    .eq('total_cost', 0)
+                    .order('updated_at', { ascending: false });
+                
+                const allOrders = [...(ordersPending || []), ...(ordersCompletedNoCost || [])];
+                
+                // 始终初始化这两个数组，即使没有数据
+                globalData.ordersEntry = allOrders.filter(o => isZero(o.cost_product) && isZero(o.cost_logistics) && isZero(o.cost_tax_pack) && isZero(o.cost_other) && isZero(o.total_cost));
+                globalData.ordersSettle = allOrders.filter(o => !isZero(o.total_cost) || !isZero(o.cost_product) || !isZero(o.cost_logistics) || !isZero(o.cost_tax_pack) || !isZero(o.cost_other));
             } catch (err) { console.error("Order error", err); }
 
-            // 3. 佣金发放
-            const { data: comms } = await supabase.from('04_commission_summary').select('*').or('settle_status.eq.待发放,settle_status.eq.核算中').order('year_month', {ascending: false});
-            globalData.commissions = comms || [];
+            // 从 04_commission_summary 表查询待发放佣金
+            try {
+                const { data: comms, error: commError } = await supabase
+                    .from('04_commission_summary')
+                    .select('*, user:01_user_master!user_id(real_name, role)')
+                    .eq('settle_status', '待发放')
+                    .order('total_amount', {ascending: false});
+                
+                if (commError) {
+                    console.error('查询佣金汇总失败:', commError);
+                    globalData.commissions = [];
+                } else {
+                    globalData.commissions = comms || [];
+                }
+            } catch (e) {
+                console.error('佣金查询异常:', e);
+                globalData.commissions = [];
+            }
 
-            // 4. 赔偿审核
-            const { data: digitals } = await supabase.from('03_digital_kit_orders').select('*').eq('is_returned', false);
-            globalData.digitalOrders = digitals || [];
+            // 从 05_referral_details 表查询推荐奖励（按推荐人汇总）
+            try {
+                const { data: referrals } = await supabase
+                    .from('05_referral_details')
+                    .select('*, referrer:01_user_master!referrer_id(real_name, role)')
+                    .or('status.eq.待发放,status.is.null');
+                
+                // 按推荐人汇总
+                const referrerMap = {};
+                (referrals || []).forEach(r => {
+                    const key = r.referrer_id;
+                    if (!referrerMap[key]) {
+                        referrerMap[key] = {
+                            referrer_id: r.referrer_id,
+                            referrer: r.referrer,
+                            settle_month: r.settle_month,
+                            order_count: 0,
+                            total_payout: 0,
+                            detail_ids: []
+                        };
+                    }
+                    referrerMap[key].order_count++;
+                    referrerMap[key].total_payout += parseFloat(r.payout || 0);
+                    referrerMap[key].detail_ids.push(r.id);
+                });
+                
+                globalData.referrals = Object.values(referrerMap).sort((a, b) => b.total_payout - a.total_payout);
+            } catch (refError) {
+                console.warn('查询推荐奖励失败:', refError);
+                globalData.referrals = [];
+            }
+
+            // 查询 03_digital_kit_orders 数字化设备订单表
+            try {
+                const { data: digitals } = await supabase
+                    .from('03_digital_kit_orders')
+                    .select('*')
+                    .eq('is_returned', false);
+                globalData.digitalOrders = digitals || [];
+            } catch (e) {
+                console.warn('数字化设备订单查询失败:', e);
+                globalData.digitalOrders = [];
+            }
+
+            // 【修复】加载资金流水 (11_finance_log) - 添加错误处理
+            try {
+                const { data: logs } = await supabase.from('11_finance_log').select('*').order('created_at', {ascending: false}).limit(100);
+                globalData.financeLogs = logs || [];
+            } catch(e) {
+                console.warn('11_finance_log 表访问失败:', e);
+                globalData.financeLogs = [];
+            }
 
             renderDashboard();
         }
@@ -415,14 +544,55 @@
         function isZero(val) { return val === null || val === undefined || parseFloat(val) === 0; }
 
         function renderDashboard() {
-            document.getElementById('stat-pending-payout').textContent = globalData.commissions.reduce((acc, c) => acc + parseFloat(c.total_amount||0), 0).toFixed(2);
+            // 只统计待发放的佣金
+            const pendingPayout = globalData.commissions
+                .filter(c => c.settle_status === '待发放')
+                .reduce((acc, c) => acc + parseFloat(c.total_amount||0), 0);
+            document.getElementById('stat-pending-payout').textContent = pendingPayout.toFixed(2);
+            
+            // 统计待发放的推荐奖励
+            const pendingReferral = globalData.referrals
+                .reduce((acc, r) => acc + parseFloat(r.total_payout||0), 0);
+            document.getElementById('stat-pending-referral').textContent = pendingReferral.toFixed(2);
+            
             document.getElementById('stat-pending-cost').textContent = globalData.ordersEntry.length; 
             document.getElementById('stat-pending-return').textContent = globalData.digitalOrders.length;
             document.getElementById('badge-pending-entry').textContent = globalData.ordersEntry.length + ' 单';
             document.getElementById('badge-pending-settle').textContent = globalData.ordersSettle.length + ' 单';
+            document.getElementById('badge-finance-log').textContent = globalData.financeLogs.length + ' 条';
+            document.getElementById('badge-commission').textContent = globalData.commissions.length + ' 条';
+            document.getElementById('badge-referral').textContent = globalData.referrals.length + ' 条';
             renderCostTables();
             renderPayoutTable();
+            renderReferralTable();
             renderCompTable();
+            renderFinanceLog();
+        }
+
+        // 渲染资金流水
+        function renderFinanceLog() {
+            const tbody = document.getElementById('finance-log-body');
+            if(!globalData.financeLogs || globalData.financeLogs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400 text-xs">暂无资金流水记录</td></tr>';
+                return;
+            }
+            tbody.innerHTML = globalData.financeLogs.map(log => {
+                const typeColors = { '佣金发放': 'bg-blue-50 text-blue-600', '推荐分红': 'bg-purple-50 text-purple-600', '退款': 'bg-red-50 text-red-600', '赔偿': 'bg-orange-50 text-orange-600' };
+                const typeClass = typeColors[log.type] || 'bg-slate-50 text-slate-600';
+                const date = new Date(log.created_at).toLocaleString('zh-CN');
+                // 金额显示逻辑：佣金类显示为正数（收入视角），其他按实际正负显示
+                const isCommission = log.type && (log.type.indexOf('佣金') >= 0 || log.type.indexOf('commission') >= 0);
+                const displayAmount = isCommission ? Math.abs(log.amount) : log.amount;
+                return '<tr class="border-b border-slate-50 hover:bg-slate-50/50">' +
+                    '<td class="p-4 pl-6 font-mono text-xs">' + (log.log_id || '-') + '</td>' +
+                    '<td class="p-4 text-xs text-slate-500">' + date + '</td>' +
+                    '<td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-bold ' + typeClass + '">' + (log.type || '其他') + '</span></td>' +
+                    '<td class="p-4 text-xs">' + (log.user_id ? log.user_id.slice(0,8)+'...' : '-') + '</td>' +
+                    '<td class="p-4 font-mono text-xs">' + (log.related_order_id ? log.related_order_id.slice(0,8)+'...' : '-') + '</td>' +
+                    '<td class="p-4 text-right font-black text-emerald-600">¥' + parseFloat(displayAmount || 0).toFixed(2) + '</td>' +
+                    '<td class="p-4 text-center"><span class="px-2 py-1 bg-green-50 text-green-600 rounded text-[10px] font-bold">已完成</span></td>' +
+                '</tr>';
+            }).join('');
         }
 
         function renderCostTables() {
@@ -438,9 +608,12 @@
             const ctp = parseFloat(o.cost_tax_pack || 0); const co = parseFloat(o.cost_other || 0);
             const totalCost = cp + cl + ctp + co; const profit = amount - totalCost;
             const pid = o.order_id;
-
+            // 已完成但需要补录成本的订单，添加标识
+            const statusBadge = o.status === '已完成' 
+                ? '<span class="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-600 rounded text-[9px] font-bold" title="订单状态已完成，需要补录成本">补录</span>' 
+                : '';
             if (isEntry) {
-                return `<tr class="border-b border-red-50 hover:bg-red-50/20 transition-all"><td class="p-4 pl-6 font-mono text-xs font-bold text-slate-600">${pid}</td><td class="p-4 text-xs font-bold">¥${amount.toFixed(2)}</td><td class="p-4"><input type="number" id="cp-${pid}" class="cost-input" placeholder="0.00" onchange="calcLocalProfit('${pid}', ${amount})"></td><td class="p-4"><input type="number" id="cl-${pid}" class="cost-input" placeholder="0.00" onchange="calcLocalProfit('${pid}', ${amount})"></td><td class="p-4"><input type="number" id="ctp-${pid}" class="cost-input" placeholder="0.00" onchange="calcLocalProfit('${pid}', ${amount})"></td><td class="p-4"><input type="number" id="co-${pid}" class="cost-input" placeholder="0.00" onchange="calcLocalProfit('${pid}', ${amount})"></td><td class="p-4 font-bold text-xs text-slate-400" id="profit-${pid}">待计算</td><td class="p-4 text-right pr-6"><button onclick="saveCost('${pid}', ${amount})" class="px-3 py-1.5 bg-red-600 text-white rounded text-xs font-bold shadow hover:bg-red-700 transition-all">保存数据</button></td></tr>`;
+                return `<tr class="border-b border-red-50 hover:bg-red-50/20 transition-all"><td class="p-4 pl-6 font-mono text-xs font-bold text-slate-600">${pid}${statusBadge}</td><td class="p-4 text-xs font-bold">¥${amount.toFixed(2)}</td><td class="p-4"><input type="number" id="cp-${pid}" class="cost-input" placeholder="0.00" onchange="calcLocalProfit('${pid}', ${amount})"></td><td class="p-4"><input type="number" id="cl-${pid}" class="cost-input" placeholder="0.00" onchange="calcLocalProfit('${pid}', ${amount})"></td><td class="p-4"><input type="number" id="ctp-${pid}" class="cost-input" placeholder="0.00" onchange="calcLocalProfit('${pid}', ${amount})"></td><td class="p-4"><input type="number" id="co-${pid}" class="cost-input" placeholder="0.00" onchange="calcLocalProfit('${pid}', ${amount})"></td><td class="p-4 font-bold text-xs text-slate-400" id="profit-${pid}">待计算</td><td class="p-4 text-right pr-6"><button onclick="saveCost('${pid}', ${amount})" class="px-3 py-1.5 bg-red-600 text-white rounded text-xs font-bold shadow hover:bg-red-700 transition-all">保存数据</button></td></tr>`;
             } else {
                 return `<tr class="border-b border-emerald-50 hover:bg-emerald-50/20 transition-all"><td class="p-4 pl-6 font-mono text-xs font-bold text-slate-600">${pid}</td><td class="p-4 text-xs font-bold">¥${amount.toFixed(2)}</td><td class="p-4"><input type="number" id="cp-${pid}" value="${cp}" class="cost-input cost-input-readonly" readonly></td><td class="p-4"><input type="number" id="cl-${pid}" value="${cl}" class="cost-input cost-input-readonly" readonly></td><td class="p-4"><input type="number" id="ctp-${pid}" value="${ctp}" class="cost-input cost-input-readonly" readonly></td><td class="p-4"><input type="number" id="co-${pid}" value="${co}" class="cost-input cost-input-readonly" readonly></td><td class="p-4 font-bold text-xs ${profit>=0?'text-emerald-600':'text-red-500'}">¥${profit.toFixed(2)}</td><td class="p-4 text-right pr-6 flex justify-end gap-2"><button onclick="enableEdit('${pid}')" class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-bold hover:bg-slate-200">修改</button><button onclick="settleOrder('${pid}')" class="px-3 py-1 bg-emerald-600 text-white rounded text-xs font-bold shadow hover:bg-emerald-700">确认结算</button><button onclick="saveCost('${pid}', ${amount})" id="btn-save-${pid}" class="hidden px-2 py-1 bg-blue-600 text-white rounded text-xs font-bold">保存</button></td></tr>`;
             }
@@ -455,31 +628,58 @@
         }
 
         function enableEdit(pid) {
-            ['cp','cl','ctp','co'].forEach(prefix => {
-                const el = document.getElementById(prefix+'-'+pid); el.readOnly = false; el.classList.remove('cost-input-readonly'); el.classList.add('bg-white', 'border-blue-300');
-            });
+            ['cp','cl','ctp','co'].forEach(prefix => { const el = document.getElementById(prefix+'-'+pid); el.readOnly = false; el.classList.remove('cost-input-readonly'); el.classList.add('bg-white', 'border-blue-300'); });
             document.getElementById('btn-save-'+pid).classList.remove('hidden');
         }
 
         function renderPayoutTable() {
             const tbody = document.getElementById('payout-table-body');
-            tbody.innerHTML = globalData.commissions.map(c => `
-                <tr class="border-b border-slate-50">
-                    <td class="p-4 pl-6 text-xs font-mono">${c.year_month}</td><td class="p-4 text-xs font-bold">${c.user_id}</td>
-                    <td class="p-4 font-black text-emerald-600">¥${parseFloat(c.total_amount).toFixed(2)}</td>
-                    <td class="p-4"><span class="px-2 py-1 bg-amber-50 text-amber-600 rounded text-[10px] font-bold">${c.settle_status}</span></td>
-                    <td class="p-4 text-right pr-6"><button onclick="confirmPayout('${c.summary_id}')" class="px-3 py-1.5 bg-emerald-600 text-white rounded text-xs font-bold hover:bg-emerald-700 transition-all shadow-sm">确认已打款</button></td>
-                </tr>
-            `).join('') || '<tr><td colspan="5" class="p-6 text-center text-slate-400 text-xs">暂无待发放佣金</td></tr>';
+            tbody.innerHTML = globalData.commissions.map(function(c) {
+                const userName = (c.user && c.user.real_name) ? c.user.real_name : (c.user_id ? c.user_id.slice(0, 8) + '...' : '未知');
+                const userRole = (c.user && c.user.role && c.user.role.join) ? c.user.role.join('/') : '';
+                // 佣金明细
+                const details = [];
+                if (c.procurement_comm > 0) details.push('采购¥' + c.procurement_comm.toFixed(0));
+                if (c.service_comm > 0) details.push('服务¥' + c.service_comm.toFixed(0));
+                if (c.referral_comm > 0) details.push('推荐¥' + c.referral_comm.toFixed(0));
+                const detailText = details.length > 0 ? '(' + details.join(' + ') + ')' : '';
+                
+                return '<tr class="border-b border-slate-50">' +
+                    '<td class="p-4 pl-6 text-xs font-mono">' + (c.year_month || '-') + '</td>' +
+                    '<td class="p-4 text-xs font-bold">' + userName + ' <span class="text-slate-400 font-normal">(' + userRole + ')</span></td>' +
+                    '<td class="p-4">' +
+                        '<div class="font-black text-emerald-600">¥' + parseFloat(c.total_amount || 0).toFixed(2) + '</div>' +
+                        '<div class="text-[10px] text-slate-400">' + detailText + '</div>' +
+                    '</td>' +
+                    '<td class="p-4"><span class="px-2 py-1 bg-amber-50 text-amber-600 rounded text-[10px] font-bold">' + c.settle_status + '</span></td>' +
+                    '<td class="p-4 text-right pr-6"><button onclick="confirmPayout(\'' + c.summary_id + '\')" class="px-3 py-1.5 bg-emerald-600 text-white rounded text-xs font-bold hover:bg-emerald-700 transition-all shadow-sm">确认已打款</button></td>' +
+                '</tr>';
+            }).join('') || '<tr><td colspan="5" class="p-6 text-center text-slate-400 text-xs">暂无待发放佣金</td></tr>';
         }
 
-        // --- 赔偿表 (表格内直接下拉选择) ---
+        function renderReferralTable() {
+            const tbody = document.getElementById('referral-payout-body');
+            tbody.innerHTML = globalData.referrals.map(function(r) {
+                const userName = (r.referrer && r.referrer.real_name) ? r.referrer.real_name : (r.referrer_id ? r.referrer_id.slice(0, 8) + '...' : '未知');
+                const userRole = (r.referrer && r.referrer.role && r.referrer.role.join) ? r.referrer.role.join('/') : '';
+                
+                return '<tr class="border-b border-slate-50">' +
+                    '<td class="p-4 pl-6 text-xs font-mono">' + (r.settle_month || '-') + '</td>' +
+                    '<td class="p-4 text-xs font-bold">' + userName + ' <span class="text-slate-400 font-normal">(' + userRole + ')</span></td>' +
+                    '<td class="p-4 text-xs">' + r.order_count + ' 单</td>' +
+                    '<td class="p-4 font-black text-purple-600">¥' + parseFloat(r.total_payout || 0).toFixed(2) + '</td>' +
+                    '<td class="p-4"><span class="px-2 py-1 bg-amber-50 text-amber-600 rounded text-[10px] font-bold">待发放</span></td>' +
+                    '<td class="p-4 text-right pr-6"><button onclick="confirmReferralPayout(\'' + r.referrer_id + '\')" class="px-3 py-1.5 bg-purple-600 text-white rounded text-xs font-bold hover:bg-purple-700 transition-all shadow-sm">确认已打款</button></td>' +
+                '</tr>';
+            }).join('') || '<tr><td colspan="6" class="p-6 text-center text-slate-400 text-xs">暂无待发放推荐奖励</td></tr>';
+        }
+
         function renderCompTable() {
             const tbody = document.getElementById('comp-table-body');
             tbody.innerHTML = globalData.digitalOrders.map(d => `
                 <tr class="border-b border-slate-50 hover:bg-slate-50/50">
                     <td class="p-4 pl-6 font-mono text-xs">${d.order_id}</td>
-                    <td class="p-4 text-xs"><span class="bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold">${d.mode}</span></td>
+                    <td class="p-4 text-xs"><span class="bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold">${d.mode || '租赁'}</span></td>
                     <td class="p-4">
                         <select id="damage-${d.order_id}" class="w-40 bg-white border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:border-emerald-500 font-bold text-slate-700 cursor-pointer">
                             <option value="正常磨损">✅ 正常磨损 (¥0)</option>
@@ -489,33 +689,30 @@
                             <option value="手机丢失">❌ 手机丢失 (¥700)</option>
                         </select>
                     </td>
-                    <td class="p-4 text-xs font-bold">¥${parseFloat(d.deposit).toFixed(2)}</td>
+                    <td class="p-4 text-xs font-bold">¥${parseFloat(d.deposit || 700).toFixed(2)}</td>
                     <td class="p-4 text-right pr-6">
-                        <button onclick="confirmReturn('${d.order_id}', ${d.deposit})" class="px-4 py-1.5 bg-slate-800 text-white rounded text-xs font-bold hover:bg-slate-900 shadow-sm transition-all">确定归还</button>
+                        <button onclick="confirmReturn('${d.order_id}', ${parseFloat(d.deposit || 700)})" class="px-4 py-1.5 bg-slate-800 text-white rounded text-xs font-bold hover:bg-slate-900 shadow-sm transition-all">确定归还</button>
                     </td>
                 </tr>
             `).join('') || '<tr><td colspan="5" class="p-6 text-center text-slate-400 text-xs">暂无待归还设备</td></tr>';
         }
 
-        // --- 核心交互 ---
-        
         async function confirmReturn(orderId, deposit) {
             const selectEl = document.getElementById('damage-' + orderId);
             const damageLevel = selectEl.value;
             const cost = DAMAGE_COSTS[damageLevel];
             const refund = Math.max(0, deposit - cost);
-
             if(!confirm(`⚠️ 归还核算确认：\n\n设备状态: ${damageLevel}\n应扣赔偿: ¥${cost}\n应退押金: ¥${refund.toFixed(2)}\n\n是否确认并提交？此操作不可撤销。`)) return;
-
             document.getElementById('loadingOverlay').style.display = 'flex';
-            const { error } = await supabase.from('03_digital_kit_orders').update({
+            // 更新 03_digital_kit_orders 表
+            const { error } = await supabase.from('03_digital_kit_orders').update({ 
                 is_returned: true,
                 damage_level: damageLevel,
-                compensation: cost
+                compensation: cost,
+                refund_amount: refund  // 实际退还金额（押金 - 赔偿）
             }).eq('order_id', orderId);
-
             if(error) alert('操作失败: ' + error.message);
-            else { alert('✅ 归还成功，赔偿金已记录'); await loadAllData(); }
+            else { alert('✅ 归还成功，赔偿金已记录'); await loadAllData(); loadTasks(); }
             document.getElementById('loadingOverlay').style.display = 'none';
         }
 
@@ -527,12 +724,9 @@
             const totalCost = cp + cl + ctp + co;
             const profit = amount - totalCost;
             document.getElementById('loadingOverlay').style.display = 'flex';
-            const { error } = await supabase.from('02_order_master').update({
-                cost_product: cp, cost_logistics: cl, cost_tax_pack: ctp, cost_other: co,
-                total_cost: totalCost, gross_profit: profit, updated_at: new Date().toISOString()
-            }).eq('order_id', oid);
+            const { error } = await supabase.from('02_order_master').update({ cost_product: cp, cost_logistics: cl, cost_tax_pack: ctp, cost_other: co, total_cost: totalCost, gross_profit: profit, updated_at: new Date().toISOString() }).eq('order_id', oid);
             if(error) alert('保存失败: ' + error.message);
-            else { alert('成本已保存，请在"待结算"列表确认。'); await loadAllData(); }
+            else { alert('成本已保存，请在"待结算"列表确认。'); await loadAllData(); loadTasks(); }
             document.getElementById('loadingOverlay').style.display = 'none';
         }
 
@@ -540,14 +734,152 @@
             if(!confirm('确认结算此订单？这将锁定利润并允许计算佣金。')) return;
             const { error } = await supabase.from('02_order_master').update({ status: '已完成' }).eq('order_id', oid);
             if(error) alert('结算失败: ' + error.message);
-            else { alert('订单已结算'); await loadAllData(); }
+            else { alert('订单已结算'); await loadAllData(); loadTasks(); }
         }
 
         async function confirmPayout(sid) {
             if(!confirm('确认已向该用户打款？状态将更新为已发放。')) return;
-            const { error } = await supabase.from('04_commission_summary').update({ settle_status: '已发放', paid_at: new Date().toISOString() }).eq('summary_id', sid);
-            if(error) alert('操作失败: ' + error.message);
-            else { alert('发放成功'); await loadAllData(); }
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            
+            try {
+                console.log('确认发放, summary_id:', sid);
+                
+                // 1. 获取佣金记录详情
+                const { data: comm, error: getError } = await supabase
+                    .from('04_commission_summary')
+                    .select('*, user:01_user_master!user_id(real_name)')
+                    .eq('summary_id', sid)
+                    .single();
+                
+                console.log('查询结果:', comm, '错误:', getError);
+                
+                if (getError || !comm) {
+                    throw new Error('获取佣金记录失败: ' + (getError && getError.message || '记录不存在'));
+                }
+                
+                // 2. 更新 04_commission_summary 表状态
+                console.log('更新04表状态...');
+                const { error: updateError } = await supabase
+                    .from('04_commission_summary')
+                    .update({ 
+                        settle_status: '已发放', 
+                        paid_at: new Date().toISOString() 
+                    })
+                    .eq('summary_id', sid);
+                
+                if (updateError) throw new Error('更新佣金状态失败: ' + updateError.message);
+                console.log('04表更新成功');
+                
+                // 3. 插入资金流水记录
+                console.log('准备插入11表...');
+                const userName = comm.user && comm.user.real_name ? comm.user.real_name : comm.user_id;
+                const logData = {
+                    user_id: comm.user_id,
+                    type: '佣金发放',
+                    amount: Math.abs(comm.total_amount),  // 使用正数，与历史数据保持一致
+                    related_order_id: sid,
+                    description: (comm.year_month || '未知') + '月佣金发放 - ' + userName,
+                    created_at: new Date().toISOString()
+                };
+                console.log('插入数据:', logData);
+                
+                const { data: logInserted, error: logError } = await supabase
+                    .from('11_finance_log')
+                    .insert(logData)
+                    .select();
+                
+                if (logError) {
+                    console.error('插入资金流水失败:', logError);
+                    alert('⚠️ 佣金已发放，但资金流水记录失败: ' + logError.message);
+                } else {
+                    console.log('资金流水插入成功:', logInserted);
+                }
+                
+                alert('✅ 发放成功！');
+                await loadAllData(); loadTasks();
+                
+            } catch (error) {
+                alert('❌ 操作失败: ' + error.message);
+                console.error('confirmPayout error:', error);
+            } finally {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+        }
+
+        async function confirmReferralPayout(referrerId) {
+            if(!confirm('确认已向该推荐人打款？将更新所有相关推荐奖励为已发放。')) return;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            
+            try {
+                console.log('确认推荐奖励发放, referrer_id:', referrerId);
+                
+                // 1. 获取该推荐人的所有待发放奖励
+                const { data: refs, error: getError } = await supabase
+                    .from('05_referral_details')
+                    .select('*, referrer:01_user_master!referrer_id(real_name)')
+                    .eq('referrer_id', referrerId)
+                    .or('status.eq.待发放,status.is.null');
+                
+                if (getError || !refs || refs.length === 0) {
+                    throw new Error('获取推荐奖励记录失败: ' + (getError && getError.message || '没有待发放记录'));
+                }
+                
+                console.log('找到', refs.length, '条待发放记录');
+                
+                // 计算总金额
+                const totalPayout = refs.reduce((sum, r) => sum + parseFloat(r.payout || 0), 0);
+                const userName = refs[0].referrer && refs[0].referrer.real_name ? refs[0].referrer.real_name : referrerId;
+                
+                // 2. 更新 05_referral_details 表状态
+                console.log('更新05表状态...');
+                const detailIds = refs.map(r => r.id);
+                
+                // 逐条更新（Supabase 不支持批量更新多个不同ID）
+                for (const id of detailIds) {
+                    const { error: updateError } = await supabase
+                        .from('05_referral_details')
+                        .update({ status: '已发放', paid_at: new Date().toISOString() })
+                        .eq('id', id);
+                    
+                    if (updateError) {
+                        console.warn('更新记录失败:', id, updateError.message);
+                    }
+                }
+                console.log('05表更新完成');
+                
+                // 3. 插入资金流水记录
+                console.log('准备插入11表...');
+                const logData = {
+                    user_id: referrerId,
+                    type: '推荐奖励',
+                    amount: Math.abs(totalPayout),
+                    related_order_id: detailIds[0], // 关联第一条记录
+                    description: refs[0].settle_month + '月推荐奖励发放 - ' + userName + ' (共' + refs.length + '单)',
+                    created_at: new Date().toISOString()
+                };
+                console.log('插入数据:', logData);
+                
+                const { data: logInserted, error: logError } = await supabase
+                    .from('11_finance_log')
+                    .insert(logData)
+                    .select();
+                
+                if (logError) {
+                    console.error('插入资金流水失败:', logError);
+                    alert('⚠️ 推荐奖励已发放，但资金流水记录失败: ' + logError.message);
+                } else {
+                    console.log('资金流水插入成功:', logInserted);
+                }
+                
+                alert('✅ 推荐奖励发放成功！共发放 ' + refs.length + ' 单，总额 ¥' + totalPayout.toFixed(2));
+                await loadAllData(); loadTasks();
+                
+            } catch (error) {
+                alert('❌ 操作失败: ' + error.message);
+                console.error('confirmReferralPayout error:', error);
+            } finally {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
         }
 
         async function saveManualRate() {
@@ -555,14 +887,7 @@
             if(!val) return alert('请输入汇率');
             const now = new Date().toISOString(); 
             const today = now.split('T')[0];
-            const { error } = await supabase.from('08_exchange_rate').insert({
-                rate_date: today,
-                captured_at: now,
-                currency: 'USD',
-                xtransfer_mid: val, 
-                exec_rate: val,
-                is_manual: true
-            });
+            const { error } = await supabase.from('08_exchange_rate').insert({ rate_date: today, captured_at: now, currency: 'USD', xtransfer_mid: val, exec_rate: val, is_manual: true });
             if(error) alert('操作失败: '+error.message);
             else { alert('汇率已锁定'); window.location.reload(); }
         }
@@ -570,79 +895,116 @@
         function switchTab(id) {
             document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
             document.getElementById('tab-' + id).classList.add('active');
-            document.querySelectorAll('.nav-item').forEach(e => {
-                e.classList.remove('bg-emerald-50', 'text-emerald-700', 'font-bold');
-                e.classList.add('text-slate-500');
-            });
+            document.querySelectorAll('.nav-item').forEach(e => { e.classList.remove('bg-emerald-50', 'text-emerald-700', 'font-bold'); e.classList.add('text-slate-500'); });
             document.getElementById('nav-' + id).classList.add('bg-emerald-50', 'text-emerald-700', 'font-bold');
+            const titles = { 'overview': '财务总览看板', 'financelog': '资金流水记录', 'costs': '成本与结算', 'compensations': '赔偿审核', 'withdrawals': '资金发放', 'exchange': '汇率管理', 'profile': '个人中心' };
+            document.getElementById('page-title').innerText = titles[id] || '财务工作台';
         }
 
-        function logout() { localStorage.removeItem('baisheng_user'); window.location.reload(); }
+        function logout() { 
+            if(confirm('确定要退出登录吗？')) {
+                localStorage.removeItem('baisheng_user'); 
+                window.location.href = 'login.html';
+            }
+        }
 
-        // ===================== 角色切换 =====================
-        const rolePages = {
-            '管理员': 'admin.html',
-            '运营': 'operations.html',
-            '财务': 'finance.html',
-            '业务经理': 'manager.html',
-            '业务员': 'salesperson.html'
-        };
-
+        const rolePages = { '管理员': 'admin.html', '运营': 'operations.html', '财务': 'finance.html', '业务经理': 'manager.html', '业务员': 'salesperson.html' };
         function switchRole(newRole) {
             const user = globalData.currentUser;
-            if (!user) {
-                alert('请先登录');
-                return;
-            }
-            
+            if (!user) { alert('请先登录'); return; }
             const userRoles = user.role || [];
             const rolesArray = Array.isArray(userRoles) ? userRoles : userRoles.split(',').map(r => r.trim());
-            
-            if (!rolesArray.includes(newRole)) {
-                alert('❌ 您没有该角色的权限');
-                document.getElementById('roleSwitcher').value = '财务';
-                return;
-            }
-            
+            if (!rolesArray.includes(newRole)) { alert('❌ 您没有该角色的权限'); document.getElementById('roleSwitcher').value = '财务'; return; }
             if (newRole === '财务') return;
-            
             const targetPage = rolePages[newRole];
-            if (targetPage) {
-                alert(`🔄 正在切换到 ${newRole}...`);
-                setTimeout(() => {
-                    window.location.href = targetPage;
-                }, 300);
-            }
+            if (targetPage) { alert(`🔄 正在切换到 ${newRole}...`); setTimeout(() => { window.location.href = targetPage; }, 300); }
         }
 
         function initRoleSwitcher() {
             const roleSwitcher = document.getElementById('roleSwitcher');
+            if (!roleSwitcher) return;
             const user = globalData.currentUser;
-            if (!roleSwitcher || !user) return;
-            
+            if (!user) { roleSwitcher.style.display = 'block'; return; }
             const userRoles = user.role || [];
             const rolesArray = Array.isArray(userRoles) ? userRoles : userRoles.split(',').map(r => r.trim());
-            
             const options = roleSwitcher.querySelectorAll('option');
             options.forEach(option => {
                 const roleValue = option.value;
-                // 保存原始文本（去除可能已添加的无权限标记）
                 const originalText = option.textContent.replace(/ \(无权限\)$/, '');
-                if (!rolesArray.includes(roleValue)) {
-                    option.disabled = true;
-                    option.textContent = originalText + ' (无权限)';
-                    option.classList.add('text-slate-400');
-                } else {
-                    option.disabled = false;
-                    option.textContent = originalText;
-                    option.classList.remove('text-slate-400');
-                }
+                if (!rolesArray.includes(roleValue)) { option.disabled = true; option.textContent = originalText + ' (无权限)'; option.classList.add('text-slate-400'); }
+                else { option.disabled = false; option.textContent = originalText; option.classList.remove('text-slate-400'); }
             });
-            
             roleSwitcher.value = '财务';
         }
-
         window.addEventListener('load', initRoleSwitcher);
-    </script>
+    
+        let notifications = [];
+
+        async function loadTasks() {
+            const roles = Array.isArray(globalData.currentUser?.role) ? globalData.currentUser.role : [globalData.currentUser?.role || '财务'];
+            roles.push('全部');
+            console.log('[任务通知] 当前用户角色:', globalData.currentUser?.role);
+            console.log('[任务通知] 查询角色列表:', roles);
+
+            const { data, error } = await supabase
+                .from('06_task_publish')
+                .select('*')
+                .in('target_role', roles)
+                .eq('status', '进行中')
+                .order('created_at', { ascending: false });
+            
+            if (error) {
+                console.warn('[任务通知] 加载失败:', error.message);
+                notifications = [];
+            } else {
+                notifications = data || [];
+                console.log('[任务通知] 加载成功:', notifications.length, '条任务');
+            }
+            updateNotificationBadge();
+            renderTasks();
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('task-list-container');
+            if (!container) return;
+            if (notifications.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-slate-400 text-sm">暂无新任务</div>`;
+                return;
+            }
+
+            let html = '';
+            notifications.forEach(task => {
+                const date = new Date(task.created_at).toLocaleDateString();
+                const roleBadge = `<span class="text-[10px] bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded ml-2">To: ${task.target_role}</span>`;
+                html += `
+                    <div class="p-4 hover:bg-slate-50 transition-colors">
+                        <div class="flex justify-between items-start mb-1">
+                            <h4 class="font-bold text-slate-800 text-sm flex items-center">${task.title} ${roleBadge}</h4>
+                            <span class="text-[10px] text-slate-400">${date}</span>
+                        </div>
+                        <p class="text-xs text-slate-600 leading-relaxed">${task.content}</p>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function updateNotificationBadge() {
+            const count = notifications.length;
+            const badge = document.getElementById('nav-task-badge');
+            const dot = document.getElementById('header-unread-dot');
+            if (count > 0) {
+                if (badge) {
+                    badge.innerText = count;
+                    badge.classList.remove('hidden');
+                }
+                if (dot) dot.classList.remove('hidden');
+            } else {
+                if (badge) badge.classList.add('hidden');
+                if (dot) dot.classList.add('hidden');
+            }
+        }
+
+</script>
 </body>
 </html>
